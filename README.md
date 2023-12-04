@@ -7,7 +7,7 @@ With Parsec, the building block of asynchronous logic is a certain kind of funct
 
 Requestors receive a callback that is called upon completion of the unit of work. The callback receives a *value* argument which represents the result of that unit of work.
 
-A value of `undefined` represents a failure state which the callback can handle however it wishes. On failure, the requestor may optionally pass a second argument we refer to as a *reason*, which is an error object with an optional `evidence` property which may contain proof of the failure.
+A value of `undefined` represents a failure state which the callback can handle however it wishes. On failure, the requestor may optionally pass a second argument we refer to as a *reason*.
 
 Requestors may optionally return a function we will call a *cancellor*. Thr cancellor should be used to attempt to cancel the unit of work started by the requestor. Cancellors cannot guarantee cancellation, they can only guarantee an attempt.
 
