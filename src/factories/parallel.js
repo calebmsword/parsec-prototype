@@ -1,10 +1,12 @@
 import { 
+    exists,
     getArrayLength, 
     checkRequestors, 
     checkRequestorCallback,
     makeReason
-} from "./utils";
-import { __factoryName__, FactoryName, TimeOption } from "./constants";
+} from "../lib/utils.js";
+import { __factoryName__, FactoryName, TimeOption } from "../lib/constants.js";
+import { run } from "../lib/run.js";
 
 /**
  * Makes requestor which causes many requestors to be in effect simultaneously.
@@ -96,11 +98,11 @@ export function parallel(spec) {
     else {
         if (getArrayLength(optionals, factoryName) === 0) {
             allRequestors = requestors;
-            timeOptions = TimeOptions.IGNORE_OPTIONALS_IF_TIME_REMAINS;
+            timeOption = TimeOption.IGNORE_OPTIONALS_IF_TIME_REMAINS;
         }
         else {
             allRequestors = [...requestors, ...optionals];
-            if (!allTimeOptions.some(option => option === timeOption))
+            if (!allTimeOption.some(option => option === timeOption))
                 throw makeReason({
                     factoryName,
                     excuse: "timeOption must be one of: " + 
@@ -111,7 +113,6 @@ export function parallel(spec) {
     }
 
     checkRequestors(allRequestors, factoryName);
-
     /**
      * A requestor which executes an array of requestors in "parallel".
      * @param {Function} callback Requestor callbacks take a value and a reason.
@@ -137,14 +138,14 @@ export function parallel(spec) {
 
         // Get the cancel function from the `run` helper.
         // We don't just immediately return the value of this function because 
-        // we need the returned cancel function to be in scope, becuase the 
+        // we need the returned cancel function to be in scope, because the 
         // `parallelAction` callback uses it.
         const cancel = run({
             factoryName,
             requestors: allRequestors,
             initialValue,
-            parallelAction({ value, reason, requestorIndex }) {
-                
+            action({ value, reason, requestorIndex }) {
+
                 results[requestorIndex] = value;
 
                 numberPending--;
@@ -190,7 +191,7 @@ export function parallel(spec) {
                 }
 
             },
-            parallelTimeout() {
+            timeout() {
                 const reason = makeReason({
                     factoryName,
                     excuse: "Time limit reached!",

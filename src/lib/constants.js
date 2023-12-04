@@ -1,4 +1,4 @@
-import { makeReason } from "./utils";
+import { makeReason } from "./utils.js";
 
 export const FactoryName = {
     SEQUENCE: "sequence",
@@ -29,8 +29,3 @@ export const TimeOption = {
 export const allTimeOptions = Object.keys(TimeOption);
 
 export const __factoryName__ = Symbol("factoryName");
-
-export const DEFAULT_CANCEL_REASON = makeReason({ 
-    factoryName,
-    excuse: "Cancel!"
-});

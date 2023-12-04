@@ -3,7 +3,7 @@ import {
     checkRequestors, 
     checkRequestorCallback, 
     makeReason 
-} from "./utils";
+} from "../lib/utils.js";
 
 /**
  * Creates a requestor which succeeds when any of its requestors succeeds.
@@ -68,7 +68,7 @@ export function race(spec) {
             factoryName,
             requestors,
             initialValue,
-            raceAction({ value, reason, requestorIndex }) {
+            action({ value, reason, requestorIndex }) {
                 numberPending--;
 
                 if (exists(value)) {
@@ -88,7 +88,7 @@ export function race(spec) {
                     callback = undefined;
                 }
             },
-            raceTimeout() {
+            timeout() {
                 const reason = makeReason({
                     factoryName,
                     excuse: "Timeout occurred during parsec.race!",

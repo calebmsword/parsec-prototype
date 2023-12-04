@@ -85,7 +85,7 @@ export function checkRequestorCallback(callback, factoryName) {
  * @param {String} factoryName 
  */
 export function checkRequestors(requestors, factoryName) {
-    if (requestors.some(requestor => isFunction(requestor) 
+    if (requestors.some(requestor => !isFunction(requestor) 
                                      || requestor.length < 1
                                      || requestor.length > 2))
         throw makeReason({

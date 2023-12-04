@@ -1,9 +1,9 @@
-import { exists, makeReason, eventually, isFunction } from "../utils";
-import { DEFAULT_CANCEL_REASON } from "./constants";
+import { FactoryName } from "./constants.js";
+import { exists, makeReason, eventually, isFunction } from "./utils.js";
 
 /**
  * Launches requestors and manages timing, cancellation, and throttling.
- * All public functions in parsec use `run` in some significant way.
+ * All functions in the parsec API use `run` for key functionality.
  * @param {Object} spec 
  * @param {String} spec.factoryName The name of the requestor factory which 
  * called `run`.
@@ -42,7 +42,7 @@ export function run(spec) {
         throttle = 0
     } = spec;
 
-    const cancellors = new Array(requestors.length);
+    let cancellors = new Array(requestors.length);
     let nextNumber = 0;
     let timerId;
 
@@ -68,7 +68,7 @@ export function run(spec) {
                     // If we are no longer running, this guard will gate the 
                     //     callback.
                     if (![cancellors, requestorIndex].every(exists)) return;
-                    
+
                     // We no longer need the cancel function associated with 
                     // this requestor 
                     cancellors[requestorIndex] = undefined;
@@ -93,9 +93,11 @@ export function run(spec) {
                                    ? value
 
                                    // pass the same message to each requestor
-                                   : initialValue);
+                                   : initialValue
+                        );
                 },
-                value);
+                value
+            );
         }
         catch(reason) {
             // Requestors must handle errors themselves. That is, a proper 
@@ -144,6 +146,11 @@ export function run(spec) {
     // so if we don't get all requestors now, we will get the rest later.
     let amountToParallelize = Math.min(throttle || Infinity, requestors.length);
     while (amountToParallelize-- > 0) eventually(startRequestor, initialValue);
+
+    const DEFAULT_CANCEL_REASON = makeReason({ 
+        factoryName,
+        excuse: "Cancel!"
+    });
 
     /**
      * Stops all unfinished requestors.

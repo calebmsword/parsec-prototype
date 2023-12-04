@@ -1,4 +1,4 @@
-import { race } from "./race";
+import { race } from "./race.js";
 
 /**
  * Try each requestor one at a time until one succeeds.

@@ -1,5 +1,5 @@
-import { __factoryName__, TimeOption } from "./constants";
-import { parallel } from "./parallel";
+import { __factoryName__, FactoryName, TimeOption } from "../lib/constants.js";
+import { parallel } from "./parallel.js";
 
 /**
  * Creates requestor. It calls requestors in order, passing results to the next.
