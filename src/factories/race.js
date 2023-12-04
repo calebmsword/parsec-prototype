@@ -34,7 +34,7 @@ import {
  * 
  * Unlike `Promise.race`, there is only failure if every requestor fails.
  * 
- * @param {Object} spec 
+ * @param {Object} spec Configures race.
  * @param {Function[]} spec.requestors An array of requestors to race.
  * @param {Number} spec.timeLimit A time limit in milliseconds.
  * @param {Number} spec.throttle Limits the number of requestors executed in a 

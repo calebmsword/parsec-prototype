@@ -30,7 +30,7 @@ import { race } from "./race.js";
  * Failure occurs only when all of the provided requestors fail. An optional 
  * time limit can be provided. If so, then failure occurs if the time limit is 
  * reached before any requestor succeeds.
- * @param {Object} spec 
+ * @param {Object} spec Configures fallback.
  * @param {Function[]} spec.requestors An array of requestors.
  * @param {Number} spec.timeLimt An optional time limit.
  * @returns {Function} A requestor function. Upon execution, starts the fallback 

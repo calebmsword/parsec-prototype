@@ -4,7 +4,7 @@ import { exists, makeReason, eventually, isFunction } from "./utils.js";
 /**
  * Launches requestors and manages timing, cancellation, and throttling.
  * All functions in the parsec API use `run` for key functionality.
- * @param {Object} spec 
+ * @param {Object} spec Configures run.
  * @param {String} spec.factoryName The name of the requestor factory which 
  * called `run`.
  * @param {Function[]} spec.requestors An array of requestor functions.

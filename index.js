@@ -38,12 +38,12 @@ import { TimeOption } from "./src/lib/constants.js";
  * the documentation for `parsec.parallel` and `parsec.TimeOption`.
  * 
  */
-const parseq = {
+const parseq = Object.freeze({
     parallel,
     race,
     fallback,
     sequence,
     TimeOption
-}
+});
 
 export default parseq;

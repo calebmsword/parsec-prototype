@@ -32,7 +32,7 @@ import { parallel } from "./parallel.js";
  * Success occurs when every requestor succeeds. If any failure occurs in any 
  * requestor or the optional time limit is reached before the sequence ends, 
  * then failure is reached. 
- * @param {Object} spec 
+ * @param {Object} spec Configures sequence.
  * @param {Function[]} spec.requestors The requestors to perform in sequence.
  * @param {Number} spec.timeLimit The optional time limit.
  * @returns {Function} The sequence requestor. Upon execution, starts the 

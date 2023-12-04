@@ -56,7 +56,7 @@ import { run } from "../lib/run.js";
  * `parallel` fails if the time limit is reached before every necessary 
  * requestor completes. This can be configured with `spec.timeOption`.
  * 
- * @param {Object} spec 
+ * @param {Object} spec Configures parallel.
  * @param {Function[]} spec.requestors An array of requestors, all of 
  * which must succeed for the requestor returned by parallel to succeed.
  * @param {Function[]} spec.optionals An array of optional requestors. The 
