@@ -3,7 +3,7 @@ Parsec is a robust functional solution to asynchronous code management in JavaSc
 
 This library is based off a library of the same name by Douglas Crockford from his book "How JavaScript Works". Functionally, this library is fully equivalent, and the differences are entirely stylistic. Crockford released the library as open source and gives his blessing to all who wish to use it.
 
-With Parsec, the atomic unit of asynchronous logic is a certain kind of function we will call a **requestor**. A requestor performs *one unit of work*, which in practice is almost always some asynchronous request.
+With Parsec, the building block of asynchronous logic is a certain kind of function we will call a **requestor**. A requestor performs *one unit of work*, which in practice is almost always some asynchronous request.
 
 Requestors receive a callback that is called upon completion of the unit of work. The callback receives a *value* argument which represents the result of that unit of work.
 
