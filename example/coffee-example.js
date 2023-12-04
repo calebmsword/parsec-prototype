@@ -4,19 +4,14 @@ import { createFetchRequestor } from "./create-fetch-requestor.js";
 const coffeeRequestor = createFetchRequestor("https://api.sampleapis.com/coffee/hot");
 
 function toJsonRequestor(callback, value) {
-    if (typeof value.json !== "function") {
-        callback(undefined, new Error("No method called `json`!"));
+    try {
+        value.json()
+            .then(value => callback(value))
+            .catch(reason => callback(undefined, reason));
     }
-
-    const result = value.json();
-
-    if (typeof result.then !== "function") {
-        callback(undefined, new Error("json() does not return a thenable!"));
+    catch(error) {
+        callback(undefined, error);
     }
-
-    Promise.resolve(result)
-        .then(value => callback(value))
-        .catch(reason => callback(undefined, reason));
 }
 
 const getAllCoffeeRequestor = parseq.sequence({
