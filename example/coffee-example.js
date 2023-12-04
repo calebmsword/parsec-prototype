@@ -1,4 +1,4 @@
-import parseq from "../index.js";
+import parseq from "../src/index.js";
 import { createFetchRequestor } from "./create-fetch-requestor.js";
 
 const coffeeRequestor = createFetchRequestor("https://api.sampleapis.com/coffee/hot");

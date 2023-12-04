@@ -1,8 +1,8 @@
-import { parallel } from "./src/factories/parallel.js";
-import { sequence } from "./src/factories/sequence.js";
-import { race } from "./src/factories/race.js";
-import { fallback } from "./src/factories/fallback.js";
-import { TimeOption } from "./src/lib/constants.js";
+import { parallel } from "./factories/parallel.js";
+import { sequence } from "./factories/sequence.js";
+import { race } from "./factories/race.js";
+import { fallback } from "./factories/fallback.js";
+import { TimeOption } from "./lib/constants.js";
 
 /**
  * Parsec is a utility for managing asynchronous code.
