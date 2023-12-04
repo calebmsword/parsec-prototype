@@ -11,6 +11,11 @@ A value of `undefined` represents a failure state which the callback can handle 
 
 Requestors may optionally return a function we will call a *cancellor*. Thr cancellor should be used to attempt to cancel the unit of work started by the requestor. Cancellors cannot guarantee cancellation, they can only guarantee an attempt.
 
-Parsec provides four requestor factories which can be used to compose requestors in maintainable way. This does away with callback hell and Promise chains.
+Parsec provides four requestor factories which can be used to compose requestors in maintainable way:
+
+ - `parsec.parallel` creates a requestor which concurrently executes a collection of other requestors.
+ - `parsec.race` creates a requestor which allows one to concurrently run multiple requestors and succeed whenever any one requestor completes.
+ - `parsec.sequence` creates a requestor which performs a series of requestors in order, one at a time. The results are passed from the previous to the next.
+ - `parsec.fallback` creates a requestor which performs a series of requestors in order and succeeds once any requestor succeeds.
 
 The factories take a collection of requestors and return a requestor which composes the provided requestors. This allows the factories themselves to be composed.
