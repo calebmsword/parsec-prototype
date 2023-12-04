@@ -1,11 +1,11 @@
 import { makeReason } from "./utils.js";
 
-export const FactoryName = {
+export const FactoryName = Object.freeze({
     SEQUENCE: "sequence",
     PARALLEL: "parallel",
     FALLBACK: "fallback",
     RACE: "race"
-};
+});
 
 /**
  * Determines how the optional requestors are handled in `parallel`.
@@ -20,12 +20,12 @@ export const FactoryName = {
  * optionals do. If the necessities finish, keep going if there is time left. If 
  * the time limit is reached, then cancel.
  */
-export const TimeOption = {
+export const TimeOption = Object.freeze({
     SKIP_OPTIONALS_IF_TIME_REMAINS: "skip opts",
     TRY_OPTIONALS_IF_TIME_REMAINS: "try opts",
     REQUIRE_NECESSITIES: "require necessities"
-}
+});
 
-export const allTimeOptions = Object.keys(TimeOption);
+export const allTimeOptions = Object.freeze(Object.keys(TimeOption));
 
 export const __factoryName__ = Symbol("factoryName");
