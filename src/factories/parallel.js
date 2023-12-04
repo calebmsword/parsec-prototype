@@ -57,11 +57,17 @@ import { run } from "../lib/run.js";
  * requestor completes. This can be configured with `spec.timeOption`.
  * 
  * @param {Object} spec 
- * @param {Function[]} spec.requestors
- * @param {Function[]} spec.optionals
- * @param {Number} spec.timeLimit
- * @param {String} spec.timeOption
- * @param {Number} spec.throttle
+ * @param {Function[]} spec.requestors An array of requestors, all of 
+ * which must succeed for the requestor returned by parallel to succeed.
+ * @param {Function[]} spec.optionals An array of optional requestors. The 
+ * `timeOption` property changes how this function handles optionals.
+ * @param {Number} spec.timeLimit Optional. A timeout in milliseconds. Failure 
+ * occurs if the required requestors are not all complete before this time limit.
+ * @param {String} spec.timeOption Determines how the optional requestors are 
+ * handled when the required requestors are all complete. See the documentation 
+ * for the `TimeOption` object.
+ * @param {Number} spec.throttle The number of requestors which can be 
+ * simultaneously handled by the server. A throttle of 0 indicates no limitation.
  * @returns {Function} Requestor which calls the array of requestors in 
  * "parallel".
  */
@@ -88,20 +94,27 @@ export function parallel(spec) {
     const numberOfNecessities = getArrayLength(requestors, factoryName);
     if (numberOfNecessities === 0) {
         if (getArrayLength(optionals, factoryName) === 0) {
+            // no necesseties and no optionals
             allRequestors = [];
         }
         else {
+            // no necesseties and some optionals
             allRequestors = optionals;
             timeOption = TimeOption.TRY_OPTIONALS_IF_TIME_REMAINS;
         }
     }
     else {
         if (getArrayLength(optionals, factoryName) === 0) {
+            // some necesseties and no optionals
             allRequestors = requestors;
             timeOption = TimeOption.IGNORE_OPTIONALS_IF_TIME_REMAINS;
         }
         else {
+            // some necesseties and some optionals
             allRequestors = [...requestors, ...optionals];
+
+            // ensure the provided timeOption is one of the containe d
+            // in the TimeOption object
             if (!allTimeOption.some(option => option === timeOption))
                 throw makeReason({
                     factoryName,
@@ -113,6 +126,7 @@ export function parallel(spec) {
     }
 
     checkRequestors(allRequestors, factoryName);
+    
     /**
      * A requestor which executes an array of requestors in "parallel".
      * @param {Function} callback Requestor callbacks take a value and a reason.
@@ -138,8 +152,8 @@ export function parallel(spec) {
 
         // Get the cancel function from the `run` helper.
         // We don't just immediately return the value of this function because 
-        // we need the returned cancel function to be in scope, because the 
-        // `parallelAction` callback uses it.
+        // we need the returned cancel function to be in scope, since the 
+        // `action` callback uses it.
         const cancel = run({
             factoryName,
             requestors: allRequestors,
