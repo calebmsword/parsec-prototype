@@ -10,7 +10,7 @@ Requestors receive a callback that is called when the unit of work completes. Th
 
 A value of `undefined` represents a failure which the callback can handle however it wishes. On failure, the callback may optionally receive a second argument we refer to as a *reason*.
 
-Requestors may optionally return a function we call a **cancellor**. Thr cancellor should attempt to cancel the unit of work its requestor started. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
+Requestors may optionally return a function we call a **cancellor**. The cancellor should attempt to cancel the unit of work its requestor started. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
 
 ### parsec and requestors
 Callback hell should be avoided at all costs. Instead of passing nested callbacks as the argument to a requestor, Parseq provides four requestor factories which can be used to compose requestors in a maintainable way:
