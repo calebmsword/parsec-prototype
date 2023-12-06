@@ -19,7 +19,7 @@ const getAllCoffeeRequestor = parseq.sequence({
 });
 
 getAllCoffeeRequestor((value, reason) => {
-    if (value === undefined) console.log("Failure:", reason);
+    if (value === undefined) return console.log("Failure:", reason);
 
     console.log(value.map(element => element.title))
 });
