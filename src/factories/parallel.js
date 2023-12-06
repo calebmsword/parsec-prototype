@@ -19,9 +19,9 @@ import { run } from "../lib/run.js";
  * const cheeseRequestor = createFetchRequestor("https://cheese.com/api/cheeses");
  * const beerRequestor = createFetchRequestor("https://beer.com/api/beers");
  * 
- * const cheeseAndBeerRequestor = parsec.parallel({
- *     requestors: [cheeseRequestor, beerRequestor]
- * });
+ * const cheeseAndBeerRequestor = parsec.parallel(
+ *     [cheeseRequestor, beerRequestor]
+ * );
  * 
  * // make request
  * cheeseAndBeerRequestor((value, reason) => {
@@ -56,6 +56,7 @@ import { run } from "../lib/run.js";
  * `parallel` fails if the time limit is reached before every necessary 
  * requestor completes. This can be configured with `spec.timeOption`.
  * 
+ * @param {Function[]} requestors An array of requestors.
  * @param {Object} spec Configures parallel.
  * @param {Function[]} spec.requestors An array of requestors, all of 
  * which must succeed for the requestor returned by parallel to succeed.
@@ -71,9 +72,8 @@ import { run } from "../lib/run.js";
  * @returns {Function} Requestor which calls the array of requestors in 
  * "parallel".
  */
-export function parallel(spec) {
+export function parallel(requestors, spec = {}) {
     const {
-        requestors,
         optionals,
         timeLimit,
         throttle,

@@ -17,9 +17,9 @@ import {
  * const cheddarRequestor = createFetchRequestor("https://cheese.com/api/cheeses/cheddar");
  * const americanRequestor = createFetchRequestor("https://cheese.com/api/cheeses/american");
  * 
- * const cheeseRequestor = parsec.race({
- *     requestors: [gruyereRequestor, cheddarRequestor, americanRequestor]
- * });
+ * const cheeseRequestor = parsec.race(
+ *  [gruyereRequestor, cheddarRequestor, americanRequestor]
+ * );
  * 
  * // make request
  * cheeseRequestor((value, reason) => {
@@ -34,6 +34,7 @@ import {
  * 
  * Unlike `Promise.race`, there is only failure if every requestor fails.
  * 
+ * @param {Function[]} requestors An array of requestors.
  * @param {Object} spec Configures race.
  * @param {Function[]} spec.requestors An array of requestors to race.
  * @param {Number} spec.timeLimit A time limit in milliseconds.
@@ -41,9 +42,8 @@ import {
  * tick.
  * @returns {Function} A requestor. Calling this method starts the race.
  */
-export function race(spec) {
+export function race(requestors, spec = {}) {
     const {
-        requestors,
         timeLimit,
         throttle
     } = spec;

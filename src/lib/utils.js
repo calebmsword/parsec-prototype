@@ -57,7 +57,7 @@ export function makeReason(spec) {
 export function getArrayLength(candidateArray, factoryName) {
     if (Array.isArray(candidateArray)) return candidateArray.length;
     if (!exists(candidateArray)) return 0;
-    throw make_reason({ 
+    throw makeReason({ 
         factory_name: factoryName, 
         excuse: "Not an array!", 
         array: candidateArray 

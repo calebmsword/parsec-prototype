@@ -14,9 +14,9 @@ import { parallel } from "./parallel.js";
  * // this requestor takes access key through `value`
  * const fancyCheeseRequestor = createFetchRequestor("https://cheese.com/api/cheeses/vip");
  * 
- * const privilegedCheeseRequestor = parsec.sequence({
- *     requestors: [cheeseCredentialsRequestor, fancyCheeseRequestor]
- * });
+ * const privilegedCheeseRequestor = parsec.sequence(
+ *     [cheeseCredentialsRequestor, fancyCheeseRequestor]
+ * );
  * 
  * // make request
  * privilegedCheeseRequestor((value, reason) => {
@@ -32,20 +32,16 @@ import { parallel } from "./parallel.js";
  * Success occurs when every requestor succeeds. If any failure occurs in any 
  * requestor or the optional time limit is reached before the sequence ends, 
  * then failure is reached. 
+ * @param {Function[]} requestors An array of requestors.
  * @param {Object} spec Configures sequence.
- * @param {Function[]} spec.requestors The requestors to perform in sequence.
  * @param {Number} spec.timeLimit The optional time limit.
  * @returns {Function} The sequence requestor. Upon execution, starts the 
  * sequence request.
  */
-export function sequence(spec) {
-    const {
-        requestors,
-        timeLimit
-    } = spec;
+export function sequence(requestors, spec = {}) {
+    const { timeLimit } = spec;
 
-    return parallel({
-        requestors,
+    return parallel(requestors, {
         timeLimit,
         timeOption: TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS,
         throttle: 1,
