@@ -20,7 +20,7 @@ Callback hell should be avoided at all costs. Instead of passing nested callback
  - `parseq.sequence` creates a requestor which executes a collection of requestors in order, one at a time. The results are passed from the previous to the next.
  - `parseq.fallback` creates a requestor which performs a collection of requestors in order and succeeds once any requestor succeeds.
 
-Each factory takes a collection of requestors and returns a new requestor. This allows the factories themselves to be composed.
+Each factory takes an array of requestors and returns a new requestor. This allows the factories themselves to be composed.
 
 ### why should I use parsec?
 Using Parseq and requestors, we have clear separation of logic and control flow for asynchronous code. This is something that Promises and async-await fail to do. Simple features like throttling the number of concurrent requests to a server or cancelling a remote request, things which are inconvenient with Promises or async-await, are trivial with Parsec. Finally, the library is small and has no dependencies.
