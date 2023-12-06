@@ -1,6 +1,6 @@
 import parseq from "../src/index.js";
-import { createGetRequestor } from "./create-get-requestor.js";
-import { createToJsonRequestor } from "./create-to-json-requestor.js"
+import { createGetRequestor } from "./example-utils/create-get-requestor.js";
+import { createToJsonRequestor } from "./example-utils/create-to-json-requestor.js"
 
 const getCoffees = createGetRequestor("https://api.sampleapis.com/coffee/hot");
 const toJson = createToJsonRequestor();
