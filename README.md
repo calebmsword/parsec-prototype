@@ -6,19 +6,19 @@ This library is based off a library of the same name by Douglas Crockford from h
 ### requestors 
 In Parseq, the building block of asynchronous logic is a kind of function we call a **requestor**. A requestor performs *one unit of work* which typically involves asynchronous requests.
 
-Requestors receive a callback that is called when the unit of work completes. The callback receives a *value* argument which represents the result of that unit of work.
+Requestors receive a callback that is called when the unit of work completes. We call thse callbacks **receivers**. All receivers must take a *value* argument which represents the result of that unit of work.
 
-A value of `undefined` represents a failure which the callback can handle however it wishes. On failure, the callback may optionally receive a second argument we refer to as a *reason*.
+A value of `undefined` represents a failure which the receiver can handle however it wishes. On failure, the receiver may optionally get a second argument we refer to as a *reason*.
 
 Requestors may optionally return a function we call a **cancellor**. The cancellor should attempt to cancel the unit of work its requestor started. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
 
 ### parsec and requestors
-Callback hell should be avoided at all costs. Instead of passing nested callbacks as the argument to a requestor, Parseq provides four requestor factories which can be used to compose requestors in a maintainable way:
+Callback hell should be avoided at all costs. To avoid directly calling another requestor insider of a receiver, Parseq provides four requestor factories which can be used to compose requestors in a maintainable way:
 
  - `parseq.parallel` creates a requestor which concurrently executes a collection of other requestors.
- - `parseq.race` creates a requestor which allows one to concurrently run multiple requestors and succeeds whenever any one requestor completes.
+ - `parseq.race` creates a requestor which concurrently executes multiple requestors and succeeds whenever any one requestor completes.
  - `parseq.sequence` creates a requestor which executes a collection of requestors in order, one at a time. The results are passed from the previous to the next.
- - `parseq.fallback` creates a requestor which performs a collection of requestors in order and succeeds once any requestor succeeds.
+ - `parseq.fallback` creates a requestor which executes a collection of requestors in order and succeeds once any of them succeeds.
 
 Each factory takes an array of requestors and returns a new requestor. This allows the factories themselves to be composed.
 

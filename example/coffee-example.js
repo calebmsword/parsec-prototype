@@ -8,7 +8,7 @@ const toJson = createToJsonRequestor();
 const getAllCoffee = parseq.sequence([getCoffees, toJson]);
 
 getAllCoffee((value, reason) => {
-    if (value === undefined) return console.log("Failure:", reason);
+    if (value === undefined) return console.log("Failure because", reason);
 
     console.log(value.map(element => element.title))
 });
