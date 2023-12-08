@@ -6,7 +6,7 @@ This library is based off a library of the same name by Douglas Crockford from h
 ### requestors 
 In Parseq, the building block of asynchronous logic is a kind of function we call a **requestor**. A requestor performs *one unit of work* which typically involves asynchronous requests.
 
-Requestors receive a callback that is called when the unit of work completes. We call thse callbacks **receivers**. All receivers must take a *value* argument which represents the result of that unit of work.
+Requestors receive a callback that is called when the unit of work completes. We call these callbacks **receivers**. All receivers must take a *value* argument which represents the result of that unit of work.
 
 A value of `undefined` represents a failure which the receiver can handle however it wishes. On failure, the receiver may optionally get a second argument we refer to as a *reason*.
 
