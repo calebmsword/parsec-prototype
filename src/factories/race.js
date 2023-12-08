@@ -1,9 +1,12 @@
-import { 
+import { FactoryName } from "../lib/constants.js";
+import {
+    exists, 
     getArrayLength, 
     checkRequestors, 
     checkRequestorCallback, 
     makeReason 
 } from "../lib/utils.js";
+import { run } from "../lib/run.js";
 
 /**
  * Creates a requestor which succeeds when any of its requestors succeeds.
@@ -36,7 +39,6 @@ import {
  * 
  * @param {Function[]} requestors An array of requestors.
  * @param {Object} spec Configures race.
- * @param {Function[]} spec.requestors An array of requestors to race.
  * @param {Number} spec.timeLimit A time limit in milliseconds.
  * @param {Number} spec.throttle Limits the number of requestors executed in a 
  * tick.
@@ -50,7 +52,7 @@ export function race(requestors, spec = {}) {
 
     const factoryName = throttle === 1 
                         ? FactoryName.FALLBACK 
-                        : FactoryName.PARALLEL;
+                        : FactoryName.RACE;
 
     if (getArrayLength(requestors, factoryName) === 0) throw makeReason({
         factoryName,
@@ -70,13 +72,13 @@ export function race(requestors, spec = {}) {
             initialValue,
             action({ value, reason, requestorIndex }) {
                 numberPending--;
-
+                
                 if (exists(value)) {
                     // We have a winner. Cancel the losers
                     cancel(makeReason({
                         factoryName,
-                        excuse: "Cancelling losers in parsec.race!",
-                        evidence: requestorIndex
+                        excuse: "Cancelling losers!",
+                        evidence: "cheese"
                     }));
                     callback(value);
                     callback = undefined;
@@ -91,7 +93,7 @@ export function race(requestors, spec = {}) {
             timeout() {
                 const reason = makeReason({
                     factoryName,
-                    excuse: "Timeout occurred during parsec.race!",
+                    excuse: "Timeout occured!",
                     evidence: timeLimit
                 });
                 cancel(reason);
@@ -101,7 +103,6 @@ export function race(requestors, spec = {}) {
             timeLimit,
             throttle
         });
-        
         return cancel;
     };
 }

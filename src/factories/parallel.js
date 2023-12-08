@@ -58,8 +58,6 @@ import { run } from "../lib/run.js";
  * 
  * @param {Function[]} requestors An array of requestors.
  * @param {Object} spec Configures parallel.
- * @param {Function[]} spec.requestors An array of requestors, all of 
- * which must succeed for the requestor returned by parallel to succeed.
  * @param {Function[]} spec.optionals An array of optional requestors. The 
  * `timeOption` property changes how this function handles optionals.
  * @param {Number} spec.timeLimit Optional. A timeout in milliseconds. Failure 
@@ -87,11 +85,12 @@ export function parallel(requestors, spec = {}) {
 
     let { 
         timeOption = TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS 
-    } = spec; 
+    } = spec;
 
     let allRequestors;
 
     const numberOfNecessities = getArrayLength(requestors, factoryName);
+
     if (numberOfNecessities === 0) {
         if (getArrayLength(optionals, factoryName) === 0) {
             // no necesseties and no optionals
@@ -113,7 +112,7 @@ export function parallel(requestors, spec = {}) {
             // some necesseties and some optionals
             allRequestors = [...requestors, ...optionals];
 
-            // ensure the provided timeOption is one of the containe d
+            // ensure the provided timeOption is one of those contained
             // in the TimeOption object
             if (!allTimeOption.some(option => option === timeOption))
                 throw makeReason({
@@ -121,7 +120,7 @@ export function parallel(requestors, spec = {}) {
                     excuse: "timeOption must be one of: " + 
                             allTimeOptions.join(", "),
                     evidence: timeOption
-            });
+                });
         }
     }
 

@@ -1,40 +1,40 @@
+import parsec from "../src/index.js";
 import { 
     createHttpsRequestor,
-    createGetRequestor,
-    createPostRequestor
+    createPostRequestor,
+    createGetRequestor
 } 
 from "./example-utils/create-https-requestor.js";
 
+const getCoffees = createHttpsRequestor({
+    hostname: "api.sampleapis.com",
+    path: "/coffee/hot",
+    method: "GET",
+    protocol: "https:"
+});
 
-const getCoffees = createHttpsRequestor(
-    "https://api.sampleapis.com/coffee/hot",
-    {
-        headers: {
-            "Content-Type": "application/json"
-        },
-        method: "GET",
-        protocol: "https:"
+const postCaleb = createPostRequestor({
+    url: "https://reqres.in/api/users",
+    body: {
+        "name": "Caleb Sword",
+        "job": "Software Engineer"
     }
-);
-
-const cancel = getCoffees((value, reason) => {
-    if (value === undefined) return console.log("Failure because", reason);
-    console.log(value.data.map(element => element.title));
-});
-cancel(new Error("canceled!"));
-
-
-const postCaleb = createPostRequestor("https://reqres.in/api/users", {
-    "name": "Caleb Sword",
-    "job": "Software Engineer"
 });
 
-postCaleb((value, reason) => {
-    if (value === undefined) return console.log("Failure because", reason);
-    console.log(value.data);
-});
+const getUser = createGetRequestor("https://reqres.in/api/users/1");
 
-createGetRequestor("https://reqres.in/api/users/1")((value, reason) => {
-    if (value === undefined) return console.log("Failure because", reason);
-    console.log(value.data);
+const parallelRequestor = parsec.parallel([getCoffees, postCaleb, getUser]);
+
+parallelRequestor((values, reason) => {
+    if (values === undefined) return console.log("Failure because", reason);
+
+    values.forEach(value => {
+        console.log(value.statusCode, value.statusMessage);
+        console.log("Number of headers:", Object.keys(value.headers).length);
+        if (Array.isArray(value.data)) {
+            console.log(value.data.map(e => e.title));
+            return;
+        }
+        console.log(value.data);
+    });    
 });

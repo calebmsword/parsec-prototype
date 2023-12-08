@@ -37,7 +37,7 @@ export function run(spec) {
         requestors, 
         initialValue, 
         action, 
-        timeoutCallback, 
+        timeout, 
         timeLimit, 
         throttle = 0
     } = spec;
@@ -127,7 +127,7 @@ export function run(spec) {
             });
         
         if (timeLimit > 0) {
-            timerId = setTimeout(timeoutCallback, timeLimit);
+            timerId = setTimeout(timeout, timeLimit);
         }
     }
 

@@ -1,25 +1,202 @@
 import https from "node:https";
+import { URLSearchParams } from "node:url";
 
 /**
- * A requestor factory. Creates requestors that make HTTPS requests.
- * The value passed to the requestor callback will be 
- * @param {String|Url} url Either a string or a URL object.
- * @param {*} options The options hash which can be passed to https.request.
- * @param {*} body A string representing the body of request, if it has one.
- * @param {*} customCancel If a custom function is provided, then it will be 
- * used as the cancellor for the returned requestor.
- * @returns {Function} An HTTPS requestor.
+ * A requestor factory. Creates requestors that make one HTTPS request.
+ * 
+ * For convenience, and if applicable, the request body is automatically assumed 
+ * to be JSON by default. This means you can pass objects as the request body 
+ * instead of strings. If you specify `contentType` of "x-www-form-urlencoded", 
+ * then the request body will be automatically stringified into a URL query 
+ * parameter string. You can disabled this automatic parsing if you would like 
+ * (in that case, you will need to provide a string to the request body instead 
+ * of an object).
+ *  
+ * If the response data is sent as JSON, it is automatically parsed into an 
+ * object. This behavior can be disabled.
+ * 
+ * You can provide additional properties to the `spec` hash that are not 
+ * documented here. See 
+ * https://nodejs.org/api/https.html#httpsrequesturl-options-callback for the 
+ * list of properties. We provided this because Node's `https` utility is 
+ * low-level, so advanced users can wield the full functionality of its API to 
+ * manage the socket, configure connection pooling, and other advanced concerns. 
+ * Note that providing a `url` to this `spec`, or passing  `pathname`, `params`, 
+ * or `contentType` to the returned requestor may override any undocumented 
+ * options you provide which configure the URL for this request.
+ * 
+ * @param {Object} spec Configures the returned requestor.
+ * @param {String} spec.url If provided, overrides `spec.hostname`, `spec.port` 
+ * and `spec.path`. Any passwords, hash or query parameters included in the URL 
+ * are ignored.
+ * @param {String} spec.hostname The domain host. It should look something like 
+ * `www.website.com` or `website.org`. Do not include a "/" at the end.  
+ * @param {Number} spec.port Defaults to `80`.
+ * @param {String} spec.path A path from the domain. Should always start with a 
+ * "/". For example, "/api/users" would be an adequate `path`.
+ * @param {Object} spec.params Represents query parameter keys and their values.  
+ * @param {String} spec.protocol Either "https:" or "http". If none is provided, 
+ * then defaults to "https:".
+ * @param {String} spec.method "GET", "POST", "PUT", "DELETE", etc. If none is 
+ * provided, then defaults to "GET".
+ * @param {Object} spec.headers The provided object should map header keys to 
+ * their values. If a contentType is provided by the requestor, that will 
+ * override whatever is provided with this key.
+ * @param {Object|String} spec.body If an object, then it is parsed into a 
+ * string based on the provided content type (either from the header or the 
+ * `spec.contentType`). If it is a string, then it is already parsed.
+ * @param {String} spec.contentType If "json", "application/json", or "default", 
+ * then the Content-Type in the header will be "application/json". If 
+ * "x-www-form-urlencoded", then it will be "application/x-www-form-urlencoded".
+ * This is overridden completely if the `spec.headers` specifies the 
+ * content-type.
+ * @param {Function} spec.customCancel Replaces the default cancellor with 
+ * whatever is provided, if what is provided is a function.
+ * @param {Boolean} spec.autoParseRequest If false, requests will not be 
+ * automatically parsed. You must provide strings instead of objects as the 
+ * request body.
+ * @param {Boolean} spec.autoParseResponse If false, responses will be sent to 
+ * the reciever as strings instead of objects. The receiver must manually parse 
+ * the response.
+ * @returns {Function} An HTTPS requestor. The returned requestor can take an 
+ * optional `value` hash which can further configure the http request:
+ * 
+ *  - `value.pathname`: String. Appends the url path. Should start with a "/".
+ *  - `value.params`: Object. Represents query parameter keys and their values.
+ *  - `value.body`: Object|String. The request body.
+ *  - `value.headers`: Object. Additional headers to use in the request. These 
+ * are concantentated with any headers provided from the factory `spec`.
+ *  - `value.contentType`: String. Determines how `value.body` is parsed into a 
+ * string. If  `"x-www-form-urlencoded"`, `value.body` is transformed into the 
+ * format used by URL query parameters. If `"json"` or `"application/json"` or 
+ * `"default"`, `value.body` is transformed into a string by JSON.stringify. If 
+ * no `contentType` is provided, then `"application/json"` is used by default. 
+ * Specifying the content-type in the header overrides this property completely.
+ *  - `value.autoParseRequest` Boolean. If false, automatic request parsing is 
+ * disabled. If you are making a PUT/POST request, then the body must be a 
+ * parsed string instead of an object. This will override the value provided in 
+ * the factory.
+ *  - `value.autoParseResponse` Boolean. If false, requests sent as JSON will 
+ * not be sent to the receiver as an object. The data will have to be manually 
+ * parsed in the receiver. This will override the value provided in the 
+ * factory.
+ *  - `value.customCancel`: Function. If provided, replaces default cancellor.
+ * This can be used if you would like to make a request to the server to try 
+ * to stop the request from being processed.
+ * 
+ * The receiver's value is a hash with four properties: `statusCode`, 
+ * `statusMessage`, `headers`, and `data`.
+ * 
+ * The cancellor for the requestor, by default, uses `request.destroy` from 
+ * Node's `https` API. This means that the default cancellor will let the server 
+ * process your request, and whatever response is sent will simply be ignored.
  */
-export function createHttpsRequestor(url, options = {}, body, customCancel) {
-    /**
-     * @param {Function} A requestor callback.
-     * @returns {Function} A cancellor. By default, this is the 
-     * `request.destroy()` method from Node's https API. But if a custom cancel 
-     * is provided, it will be used instead.
-     */
-    return function httpsRequestor(callback) {
-        // We have multiple subscriptions to error events, so if execute  
-        // callback directly for each, we will have multiple errors printed
+export function createHttpsRequestor(spec) {
+
+    if (typeof spec !== "object")
+        spec = {}
+
+    let {
+        url,
+        hostname,
+        port,
+        path,
+        params,
+        protocol,
+        method,
+        headers,
+        body,
+        contentType,
+        customCancel,
+        autoParseRequest = true,
+        autoParseResponse = true,
+        ...rest
+    } = spec
+
+    if (typeof headers !== "object")
+        headers = {};
+
+    const __other__ = Symbol("other");
+    
+    const ContentType = {
+        json: "application/json",
+        "application/json": "application/json",
+        default: "application/json",
+        "x-www-form-urlencoded": "application/x-www-form-urlencoded",
+        "application/x-www-form-urlencoded": "application/x-www-form-urlencoded",
+        [__other__]: __other__
+    }
+
+    const Stringify = {
+        json: obj => JSON.stringify(obj),
+        "application/json": obj => JSON.stringify(obj),
+        default: obj => JSON.stringify(obj),
+        "x-www-form-urlencoded": obj => 
+            new URLSearchParams(Object.entries(obj)).toString(),
+        "application/x-www-form-urlencoded": obj => 
+            new URLSearchParams(Object.entries(obj)).toString(),
+        [__other__]: str => str
+    }
+    
+    return function httpsRequestor(callback, value) {
+        if (typeof value !== "object")
+            value = {};
+
+        // requestor can override body, contentType, or customCancel
+        body = ![null, undefined].includes(value.body) ? value.body : body;
+        contentType = ![null, undefined].includes(value.contentType) 
+                      ? value.contentType 
+                      : contentType;
+        customCancel = ![null, undefined].includes(value.customCancel) 
+                       ? value.customCancel 
+                       : customCancel;
+
+        let additionalHeaders = value.headers;
+        let additionalParams = value.params;
+        let additionalPath = value.path;
+
+        // requestor can disable automatic request parsing
+        if (![null, undefined].includes(value.autoParseRequest))
+            autoParseRequest = value.autoParseRequest;
+
+        // requestor can disable automatic response parsing
+        if (![null, undefined].includes(value.autoParseResponse))
+            autoParseResponse = value.autoParseResponse;
+
+        // if the `contentType` is not recognized, use default 
+        if (!Object.keys(ContentType).includes(contentType))
+            contentType = "default";
+
+        // concantentate factory headers with any provided from requestor
+        if (
+                ![null, undefined].includes(additionalHeaders) && 
+                typeof additionalHeaders === "object"
+           )
+            headers = { ...headers, ...additionalHeaders };
+        
+        // concantenate factory query paramters with any provided from requestor
+        if (
+                ![null, undefined].includes(additionalParams) &&
+                typeof additionalParams === object
+           )
+            params = { ...(params || {}), ...additionalParams };
+
+        // let headers override `contentType` if headers defines it
+        const contentTypeKey = Object.keys(headers).find(key => 
+            key.toLowerCase().includes("content-type")
+        );
+        if (contentTypeKey !== undefined) {
+            if (headers[contentTypeKey].includes(
+                    ContentType["x-www-form-urlencoded"]))
+                contentType = ContentType["x-www-form-urlencoded"];
+            else if (headers[contentTypeKey].includes(ContentType.json))
+                contentType = ContentType.json;
+            else
+                contentType = ContentType[__other__];
+        }
+        
+        // We have multiple subscriptions to error events, so if we execute  
+        // callback directly for each, we sometimes have multiple errors printed
         function tryCallback(value, reason) {
             if (callback === undefined) return;
             callback(value, reason);
@@ -27,15 +204,56 @@ export function createHttpsRequestor(url, options = {}, body, customCancel) {
         }
 
         try {
-            let requestInitialized = false;
-            let shouldDestroy = false;
-            let savedReason;
 
-            const request = https.request(url, options, response => {
-                requestInitialized = true;
+            // Calculate URL object from factory
+            let urlObj = {};
+            if (![null, undefined].includes(url))
+                urlObj = new URL(url);
+            else {
+                urlObj.hostname = hostname;
+                urlObj.port = port;
+                urlObj.pathname = path;
+            }
+
+            // requestor can append URL
+            if (
+                ![null, undefined].includes(additionalPath) && 
+                typeof additionalPath === "string"
+            )
+                urlObj.additionalPath += additionalPath;
+
+            // dteremien query parameters
+            if (typeof params === "object" && Object.keys(params).length > 0)
+                urlObj.pathname += `?${
+                        new URLSearchParams(Object.entries(params))
+                            .toString()
+                    }`;
+            
+            // If headers didn't override `contentType`, apply `contentType`
+            if (![null, undefined, "other"].includes(contentType))
+                headers["Content-Type"] = ContentType[contentType];
+            
+            // Automatically parse request
+            if (
+                ![null, undefined].includes(body) && 
+                autoParseRequest !== false
+               )
+                body = Stringify[contentType](body);
+            
+            const options = {
+                hostname: urlObj.hostname,
+                port: urlObj.port,
+                path: urlObj.pathname,
+                protocol,
+                method,
+                headers,
+                ...rest
+            }
+
+            const request = https.request(options, response => {
                 const chunks = [];
 
-                // treat response as ordinary strings
+                // treat response as ordinary string
                 response.setEncoding("utf-8");
                 
                 const result = {
@@ -46,37 +264,37 @@ export function createHttpsRequestor(url, options = {}, body, customCancel) {
                 
                 response.on("error", error => tryCallback(undefined, error));
 
-                response.on("data", chunk => {
-                    if (shouldDestroy) return request.destroy(savedReason);
-
-                    chunks.push(chunk);
-                });
+                response.on("data", chunk => chunks.push(chunk));
 
                 response.on("close", () => {
-                    if (shouldDestroy) return request.destroy(savedReason);
+                    const allChunks = chunks.join("");
 
-                    result.data = JSON.parse(chunks.join(""));
+                    // If auto-parsing response, parse response if it is JSON 
+                    // content type
+                    if (Object.keys(response.headers)
+                            .some(key =>
+                                key.toLowerCase().includes("content-type") && 
+                                response.headers[key]
+                                    .includes("application/json") &&
+                                autoParseResponse !== false
+                    ))
+                        result.data = JSON.parse(allChunks);
+                    else
+                        result.data = allChunks;
+
                     tryCallback(result);
                 });
             });
             
             request.on("error", reason => tryCallback(undefined, reason));
-            request.write(body || "");
+
+            request.write(![null, undefined].includes(body) ? body : "");
+            
             request.end();
 
             if (typeof customCancel === "function") return customCancel;
 
             return function attemptCancel(reason) {
-                shouldDestroy = true;
-                savedReason = reason;
-
-                // You get problems if you try to stop a request before the 
-                // socket is created. If socket is not yet created, try again
-                if (requestInitialized === false) {
-                    setTimeout(() => attemptCancel(reason), 0);
-                    return;
-                }
-                
                 request.destroy(reason);
             }
         }
@@ -86,19 +304,20 @@ export function createHttpsRequestor(url, options = {}, body, customCancel) {
     }
 }
 
-export function createGetRequestor(url) {
-    return createHttpsRequestor(url);
+export function createSpecificMethodRequestor(method) {
+    return function specificMethodRequestor(urlOrSpec, ...spec) {
+        if (typeof urlOrSpec === "string")
+            return createHttpsRequestor({ 
+                url: urlOrSpec, 
+                method, 
+                ...(spec.method = method)
+            });
+        else
+            return createHttpsRequestor({ method, ...urlOrSpec })
+    }
 }
 
-export function createPostRequestor(url, body) {
-    return createHttpsRequestor(
-        url, 
-        { 
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            }
-        }, 
-        JSON.stringify(body)
-    );
-}
+export const createGetRequestor = createSpecificMethodRequestor("GET");
+export const createPostRequestor = createSpecificMethodRequestor("POST");
+export const createPutRequestor = createSpecificMethodRequestor("PUT");
+export const createDeleteRequestor = createSpecificMethodRequestor("DELETE");
