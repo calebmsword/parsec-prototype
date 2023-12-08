@@ -239,15 +239,12 @@ export function createHttpsRequestor(spec) {
             encoding = "utf-8";
 
         // use responseMode if none is provided or unrecognized is provided
-        console.log(responseMode)
-        console.log(Object.keys(ResponseMode).includes(responseMode))
         if (
             [null, undefined].includes(responseMode) ||
             !Object.values(ResponseMode).includes(responseMode)
            )
            responseMode = ResponseMode.DEFAULT;
-        console.log(responseMode);
-        
+                
         // We have multiple subscriptions to error events, so if we execute  
         // callback directly for each, we sometimes have multiple errors printed
         function tryCallback(value, reason) {
