@@ -50,14 +50,30 @@ import { URLSearchParams } from "node:url";
  * "x-www-form-urlencoded", then it will be "application/x-www-form-urlencoded".
  * This is overridden completely if the `spec.headers` specifies the 
  * content-type.
- * @param {Function} spec.customCancel Replaces the default cancellor with 
- * whatever is provided, if what is provided is a function.
+ * @param {Function} spec.customCancel A function factory. It takes a method 
+ * which destroys the request object represented by the requestor and returns a 
+ * new function. The "destroyer" method can optionally take a reason that, if 
+ * provided, will cause the receiver to be called with that reason.
+ * @param {String} spec.encoding The encoding for the response. It can be any 
+ * value which can be set to a Node `Readable` object. See 
+ * https://nodejs.org/api/stream.html#readablesetencodingencoding.
+ * @param {String} spec.responseMode Is either `default`, `lazy`, or 
+ * `lazy_iterable`. If neither of these is provided, then `default` is used. 
+ * By default, the receiver value is an object with a `data` property containing 
+ * the result. But in the `lazy` or `lazy_iterable` response modes, the data 
+ * property will be a getter function which returns the result. Use these modes 
+ * if you expect extremely expensive response sizes. The iterable response 
+ * calls the response one chunk at a time. When all chunks have been returned, 
+ * the iterable getter will return `undefined`.
  * @param {Boolean} spec.autoParseRequest If false, requests will not be 
  * automatically parsed. You must provide strings instead of objects as the 
  * request body.
  * @param {Boolean} spec.autoParseResponse If false, responses will be sent to 
  * the reciever as strings instead of objects. The receiver must manually parse 
  * the response.
+ * @param {Function} spec.logger Any warnings will be sent to a logger if 
+ * provided. Otherwise, warnings are silent. Currently, warnings only occur if 
+ * autoparsing the response with JSON.parse causes some error. 
  * @returns {Function} An HTTPS requestor. The returned requestor can take an 
  * optional `value` hash which can further configure the http request:
  * 
@@ -67,29 +83,35 @@ import { URLSearchParams } from "node:url";
  *  - `value.headers`: Object. Additional headers to use in the request. These 
  * are concantentated with any headers provided from the factory `spec`.
  *  - `value.contentType`: String. Determines how `value.body` is parsed into a 
- * string. If  `"x-www-form-urlencoded"`, `value.body` is transformed into the 
- * format used by URL query parameters. If `"json"` or `"application/json"` or 
+ * string. If  `"x-www-form-urlencoded"` or 
+ * `"application/x-www-form-urlencoded"`, `value.body` is transformed into the 
+ * format used by URL query parameters. If `"json"`, `"application/json"`, or 
  * `"default"`, `value.body` is transformed into a string by JSON.stringify. If 
  * no `contentType` is provided, then `"application/json"` is used by default. 
  * Specifying the content-type in the header overrides this property completely.
- *  - `value.autoParseRequest` Boolean. If false, automatic request parsing is 
- * disabled. If you are making a PUT/POST request, then the body must be a 
- * parsed string instead of an object. This will override the value provided in 
- * the factory.
- *  - `value.autoParseResponse` Boolean. If false, requests sent as JSON will 
+ *  - `value.autoParseRequest`: Boolean. If false, automatic request parsing is 
+ * disabled, which means that if you are making a PUT/POST request, then the 
+ * body must be a parsed string instead of an object. This will override the 
+ * value provided in the factory.
+ *  - `value.autoParseResponse`: Boolean. If false, requests sent as JSON will 
  * not be sent to the receiver as an object. The data will have to be manually 
  * parsed in the receiver. This will override the value provided in the 
  * factory.
- *  - `value.customCancel`: Function. If provided, replaces default cancellor.
- * This can be used if you would like to make a request to the server to try 
- * to stop the request from being processed.
+ *  - `value.customCancel`: Function. A function factory. It takes a method 
+ * which destroys the request object represented by the requestor and returns a 
+ * new function. The "destroyer" method can optionally take a reason that, if 
+ * provided, will cause the receiver to be called with that reason.
+ *  - `value.encoding`: String. See the `spec.encoding` documentation.
+ *  - `value.responseMode`: String. See the `spec.responseMode` documentation.
  * 
  * The receiver's value is a hash with four properties: `statusCode`, 
  * `statusMessage`, `headers`, and `data`.
  * 
  * The cancellor for the requestor, by default, uses `request.destroy` from 
  * Node's `https` API. This means that the default cancellor will let the server 
- * process your request, and whatever response is sent will simply be ignored.
+ * process your request, and whatever response is sent will simply be ignored. 
+ * If you pass a reason to the cancellor, then the receiver will be called with 
+ * that reason.
  */
 export function createHttpsRequestor(spec) {
 
@@ -108,8 +130,11 @@ export function createHttpsRequestor(spec) {
         body,
         contentType,
         customCancel,
+        encoding,
+        responseMode,
         autoParseRequest = true,
         autoParseResponse = true,
+        logger,
         ...rest
     } = spec
 
@@ -119,30 +144,38 @@ export function createHttpsRequestor(spec) {
     const __other__ = Symbol("other");
     
     const ContentType = {
-        json: "application/json",
+        "json": "application/json",
         "application/json": "application/json",
-        default: "application/json",
+        "default": "application/json",
         "x-www-form-urlencoded": "application/x-www-form-urlencoded",
         "application/x-www-form-urlencoded": "application/x-www-form-urlencoded",
         [__other__]: __other__
     }
 
+    const searchParamatize = object => new URLSearchParams(
+        Object.entries(object)).toString();
+
     const Stringify = {
-        json: obj => JSON.stringify(obj),
-        "application/json": obj => JSON.stringify(obj),
-        default: obj => JSON.stringify(obj),
-        "x-www-form-urlencoded": obj => 
-            new URLSearchParams(Object.entries(obj)).toString(),
-        "application/x-www-form-urlencoded": obj => 
-            new URLSearchParams(Object.entries(obj)).toString(),
-        [__other__]: str => str
+        "json": JSON.stringify,
+        "application/json": JSON.stringify,
+        "default": JSON.stringify,
+        "x-www-form-urlencoded": searchParamatize,
+        "application/x-www-form-urlencoded": searchParamatize,
+        [__other__]: alreadyParsed => alreadyParsed
     }
     
+    const ResponseMode = {
+        DEFAULT: "default",
+        LAZY: "lazy",
+        LAZY_ITERATOR: "lazy_iterator"
+    }
+
     return function httpsRequestor(callback, value) {
         if (typeof value !== "object")
             value = {};
 
-        // requestor can override body, contentType, or customCancel
+        // requestor can override body, contentType, customCancel, encoding, or
+        // responseMode
         body = ![null, undefined].includes(value.body) ? value.body : body;
         contentType = ![null, undefined].includes(value.contentType) 
                       ? value.contentType 
@@ -150,6 +183,12 @@ export function createHttpsRequestor(spec) {
         customCancel = ![null, undefined].includes(value.customCancel) 
                        ? value.customCancel 
                        : customCancel;
+        encoding = ![null, undefined].includes(value.encoding) 
+                   ? value.encoding 
+                   : encoding;
+        responseMode = ![null, undefined].includes(value.responseMode) 
+                   ? value.responseMode 
+                   : responseMode;
 
         let additionalHeaders = value.headers;
         let additionalParams = value.params;
@@ -194,6 +233,20 @@ export function createHttpsRequestor(spec) {
             else
                 contentType = ContentType[__other__];
         }
+
+        // determine encoding
+        if ([null, undefined].includes(encoding))
+            encoding = "utf-8";
+
+        // use responseMode if none is provided or unrecognized is provided
+        console.log(responseMode)
+        console.log(Object.keys(ResponseMode).includes(responseMode))
+        if (
+            [null, undefined].includes(responseMode) ||
+            !Object.values(ResponseMode).includes(responseMode)
+           )
+           responseMode = ResponseMode.DEFAULT;
+        console.log(responseMode);
         
         // We have multiple subscriptions to error events, so if we execute  
         // callback directly for each, we sometimes have multiple errors printed
@@ -202,6 +255,10 @@ export function createHttpsRequestor(spec) {
             callback(value, reason);
             callback = undefined;
         }
+
+        // If no logger provided, use no-op as logger
+        if ([null, undefined].includes(logger))
+            logger = () => undefined;
 
         try {
 
@@ -222,7 +279,7 @@ export function createHttpsRequestor(spec) {
             )
                 urlObj.additionalPath += additionalPath;
 
-            // dteremien query parameters
+            // determine query parameters
             if (typeof params === "object" && Object.keys(params).length > 0)
                 urlObj.pathname += `?${
                         new URLSearchParams(Object.entries(params))
@@ -230,7 +287,7 @@ export function createHttpsRequestor(spec) {
                     }`;
             
             // If headers didn't override `contentType`, apply `contentType`
-            if (![null, undefined, "other"].includes(contentType))
+            if (![null, undefined, __other__].includes(contentType))
                 headers["Content-Type"] = ContentType[contentType];
             
             // Automatically parse request
@@ -239,6 +296,13 @@ export function createHttpsRequestor(spec) {
                 autoParseRequest !== false
                )
                 body = Stringify[contentType](body);
+            
+            // provide content-length to headers if not already there
+            if (
+                !Object.keys(headers).some(key =>
+                    key.toLowerCase().includes("content-length"))
+            )
+                headers["Content-Length"] = Buffer.byteLength(body || "");
             
             const options = {
                 hostname: urlObj.hostname,
@@ -253,8 +317,9 @@ export function createHttpsRequestor(spec) {
             const request = https.request(options, response => {
                 const chunks = [];
 
-                // treat response as ordinary string
-                response.setEncoding("utf-8");
+                // encode response (by default, is "utf-8")
+                if (encoding !== "no_encoding")
+                    response.setEncoding(encoding);
                 
                 const result = {
                     statusCode: response.statusCode,
@@ -267,10 +332,12 @@ export function createHttpsRequestor(spec) {
                 response.on("data", chunk => chunks.push(chunk));
 
                 response.on("close", () => {
-                    const allChunks = chunks.join("");
 
-                    // If auto-parsing response, parse response if it is JSON 
-                    // content type
+                    // how chunks are handled (by default, no autoparsing)
+                    let chunksHandler = unparsed => unparsed;
+
+                    // If auto-parsing response, JSON.parse response if it is 
+                    // JSON content type
                     if (Object.keys(response.headers)
                             .some(key =>
                                 key.toLowerCase().includes("content-type") && 
@@ -278,9 +345,36 @@ export function createHttpsRequestor(spec) {
                                     .includes("application/json") &&
                                 autoParseResponse !== false
                     ))
-                        result.data = JSON.parse(allChunks);
-                    else
-                        result.data = allChunks;
+                        chunksHandler = JSON.parse;
+                    
+                    const msg = "Failed to autoparse result because:"
+                    
+                    switch (responseMode) {
+                        case ResponseMode.DEFAULT:
+                            try {
+                                result.data = chunksHandler(chunks.join(""));
+                            }
+                            catch(error) {
+                                logger(`${msg}: ${error}`);
+                                return chunks.join("");
+                            }
+                            break;
+                        case ResponseMode.LAZY:
+                            result.data = () => {
+                                try {
+                                    return chunksHandler(chunks.join(""))
+                                }
+                                catch(error) {
+                                    logger(`${msg}: ${error}`);
+                                    return chunks.join("");
+                                }
+                            };
+                            break;
+                        case ResponseMode.LAZY_ITERATOR:
+                            let i = 0;
+                            result.data = () =>
+                                (i < chunks.length) ? chunks[i++] : undefined;
+                    }
 
                     tryCallback(result);
                 });
@@ -292,7 +386,8 @@ export function createHttpsRequestor(spec) {
             
             request.end();
 
-            if (typeof customCancel === "function") return customCancel;
+            if (typeof customCancel === "function") 
+                return customCancel(request.destroy);
 
             return function attemptCancel(reason) {
                 request.destroy(reason);
@@ -304,7 +399,7 @@ export function createHttpsRequestor(spec) {
     }
 }
 
-export function createSpecificMethodRequestor(method) {
+function createSpecificMethodRequestor(method) {
     return function specificMethodRequestor(urlOrSpec, ...spec) {
         if (typeof urlOrSpec === "string")
             return createHttpsRequestor({ 
@@ -312,6 +407,13 @@ export function createSpecificMethodRequestor(method) {
                 method, 
                 ...(spec.method = method)
             });
+        else if (typeof urlOrSpec !== "object")
+            throw new Error(
+                "if you provide one argument, it must be a `spec` object you " + 
+                "could pass to `createHttpsRequestor`. Otherwise, it must " + 
+                "take two arguments, where the first is the endpoint of the " + 
+                "request and the second is a `spec` object you could pass to " + 
+                "`createHttpsRequestor`.");
         else
             return createHttpsRequestor({ method, ...urlOrSpec })
     }
