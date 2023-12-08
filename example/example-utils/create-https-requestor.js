@@ -45,11 +45,13 @@ import { URLSearchParams } from "node:url";
  * @param {Object|String} spec.body If an object, then it is parsed into a 
  * string based on the provided content type (either from the header or the 
  * `spec.contentType`). If it is a string, then it is already parsed.
- * @param {String} spec.contentType If "json", "application/json", or "default", 
- * then the Content-Type in the header will be "application/json". If 
- * "x-www-form-urlencoded", then it will be "application/x-www-form-urlencoded".
- * This is overridden completely if the `spec.headers` specifies the 
- * content-type.
+ * @param {String} spec.contentType Determines how `value.body` is parsed into a 
+ * string. If  `"x-www-form-urlencoded"` or 
+`"application/x-www-form-urlencoded"`, `value.body` is transformed into the 
+ * format used by URL query parameters. If `"json"`, `"application/json"`, or 
+ * `"default"`, `value.body` is transformed into a string by JSON.stringify. If 
+ * no `contentType` is provided, then `"application/json"` is used by default. 
+ * Specifying the content-type in the header overrides this property completely.
  * @param {Function} spec.customCancel A function factory. It takes a method 
  * which destroys the request object represented by the requestor and returns a 
  * new function. The "destroyer" method can optionally take a reason that, if 
@@ -78,16 +80,13 @@ import { URLSearchParams } from "node:url";
  * optional `value` hash which can further configure the http request:
  * 
  *  - `value.pathname`: String. Appends the url path. Should start with a "/".
- *  - `value.params`: Object. Represents query parameter keys and their values.
- *  - `value.body`: Object|String. The request body.
+ *  - `value.params`: Object. Represents query parameter keys and their values. 
+ * Appends any params provided by the factory.
+ *  - `value.body`: Object|String. The request body. If provided, this will 
+ * override any value given to the factory.
  *  - `value.headers`: Object. Additional headers to use in the request. These 
  * are concantentated with any headers provided from the factory `spec`.
- *  - `value.contentType`: String. Determines how `value.body` is parsed into a 
- * string. If  `"x-www-form-urlencoded"` or 
- * `"application/x-www-form-urlencoded"`, `value.body` is transformed into the 
- * format used by URL query parameters. If `"json"`, `"application/json"`, or 
- * `"default"`, `value.body` is transformed into a string by JSON.stringify. If 
- * no `contentType` is provided, then `"application/json"` is used by default. 
+ *  - `value.contentType`: String. See documentation for `spec.contentType`.
  * Specifying the content-type in the header overrides this property completely.
  *  - `value.autoParseRequest`: Boolean. If false, automatic request parsing is 
  * disabled, which means that if you are making a PUT/POST request, then the 
@@ -100,7 +99,8 @@ import { URLSearchParams } from "node:url";
  *  - `value.customCancel`: Function. A function factory. It takes a method 
  * which destroys the request object represented by the requestor and returns a 
  * new function. The "destroyer" method can optionally take a reason that, if 
- * provided, will cause the receiver to be called with that reason.
+ * provided, will cause the receiver to be called with that reason. If provided, 
+ * this `customCancel` will override that provided by the factory.
  *  - `value.encoding`: String. See the `spec.encoding` documentation.
  *  - `value.responseMode`: String. See the `spec.responseMode` documentation.
  * 

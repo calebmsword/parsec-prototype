@@ -34,11 +34,11 @@ import { TimeOption } from "./lib/constants.js";
  * Each method returns a requestor. This means that parsec factories can be 
  * easily composed.
  * 
- * `parseq.TimeOption` is used to configure behavior for `parsec.parallel`. See 
+ * `parsec.TimeOption` is used to configure behavior for `parsec.parallel`. See 
  * the documentation for `parsec.parallel` and `parsec.TimeOption`.
  * 
  */
-const parseq = Object.freeze({
+const parsec = Object.freeze({
     parallel,
     race,
     fallback,
@@ -46,4 +46,4 @@ const parseq = Object.freeze({
     TimeOption
 });
 
-export default parseq;
+export default parsec;

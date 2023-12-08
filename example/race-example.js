@@ -1,8 +1,8 @@
-import parseq from "../src/index.js";
+import parsec from "../src/index.js";
 
 import { createDelayRequestor } from "./example-utils/create-delay-requestor.js";
 
-const raceRequestor = parseq.race([
+const raceRequestor = parsec.race([
     createDelayRequestor(100),
     createDelayRequestor(200),
     createDelayRequestor(300)
@@ -13,7 +13,7 @@ raceRequestor((value, reason) => {
     console.log(value);
 });
 
-const raceTimeLimitedRequestor = parseq.race([
+const raceTimeLimitedRequestor = parsec.race([
     createDelayRequestor(100),
     createDelayRequestor(200),
     createDelayRequestor(300)

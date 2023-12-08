@@ -41,7 +41,7 @@ export function makeReason(spec) {
     const { factoryName, excuse, evidence } = spec;
 
     const excuseText = exists(excuse) ? "" : `:${excuse}`;
-    const error = new Error(`parseq.${factoryName}${excuseText}`);
+    const error = new Error(`parsec.${factoryName}${excuseText}`);
 
     return { ...error, evidence };
 }
