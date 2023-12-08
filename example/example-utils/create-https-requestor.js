@@ -58,7 +58,10 @@ import { URLSearchParams } from "node:url";
  * provided, will cause the receiver to be called with that reason.
  * @param {String} spec.encoding The encoding for the response. It can be any 
  * value which can be set to a Node `Readable` object. See 
- * https://nodejs.org/api/stream.html#readablesetencodingencoding.
+ * https://nodejs.org/api/stream.html#readablesetencodingencoding. By default, 
+ * responses will be encoded as ordinary strings. If you give a value of 
+ * `"no_encoding"`, then the response will be given as `Buffer` objects, which 
+ * may be preferable if you expect extremely large responses.
  * @param {String} spec.responseMode Is either `default`, `lazy`, or 
  * `lazy_iterable`. If neither of these is provided, then `default` is used. 
  * By default, the receiver value is an object with a `data` property containing 

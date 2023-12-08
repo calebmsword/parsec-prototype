@@ -22,9 +22,9 @@ const postCaleb = createPostRequestor("https://reqres.in/api/users", {
 
 const getUser = createGetRequestor("https://reqres.in/api/users/1");
 
-const parallelRequestor = parsec.parallel([getCoffees, postCaleb, getUser]);
+const performAllRequests = parsec.parallel([getCoffees, postCaleb, getUser]);
 
-parallelRequestor((values, reason) => {
+performAllRequests((values, reason) => {
     if (values === undefined) return console.log("Failure because", reason);
 
     values.forEach(value => {
