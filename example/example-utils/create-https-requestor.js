@@ -4,6 +4,30 @@ import { URLSearchParams } from "node:url";
 /**
  * A requestor factory. Creates requestors that make one HTTPS request.
  * 
+ * @example
+ * ```
+ * const doPostRequest = createHttpsRequestor({
+ *     url: "endpoint/of/request",
+ *     method: "POST",  // or "GET", "PUT", "DELETE", "PATCH", etc...
+ *     headers: {
+ *         Authorization: `Bearer ${ACCESS_TOKEN}`
+ *     },
+ *     body: {
+ *         id: "1"
+ *         // etc
+ *     }
+ * });
+ * 
+ * doPostRequest((value, reason) => {
+ *     if (value === undefined) return console.log("failure because", reason);
+ *     
+ *     console.log(value.statusCode, value.statusMessage, value.headers,
+ *                 // if response is JSON, `value.data` will be an object
+ *                 // otherwise `value.data` must be parsed manually
+ *                 value.data);
+ * });
+ * ```
+ * 
  * For convenience, and if applicable, the request body is automatically assumed 
  * to be JSON by default. This means you can pass objects as the request body 
  * instead of strings. If you specify `contentType` of "x-www-form-urlencoded", 
@@ -40,8 +64,7 @@ import { URLSearchParams } from "node:url";
  * @param {String} spec.method "GET", "POST", "PUT", "DELETE", etc. If none is 
  * provided, then defaults to "GET".
  * @param {Object} spec.headers The provided object should map header keys to 
- * their values. If a contentType is provided by the requestor, that will 
- * override whatever is provided with this key.
+ * their values.
  * @param {Object|String} spec.body If an object, then it is parsed into a 
  * string based on the provided content type (either from the header or the 
  * `spec.contentType`). If it is a string, then it is already parsed.
@@ -55,7 +78,10 @@ import { URLSearchParams } from "node:url";
  * @param {Function} spec.customCancel A function factory. It takes a method 
  * which destroys the request object represented by the requestor and returns a 
  * new function. The "destroyer" method can optionally take a reason that, if 
- * provided, will cause the receiver to be called with that reason.
+ * provided, will cause the receiver to be called with that reason. Use this 
+ * if you would like to make a request to the server to tell it to stop 
+ * processing a request, since by default, the cancel function simply ignores 
+ * whatever response is sent by the server.
  * @param {String} spec.encoding The encoding for the response. It can be any 
  * value which can be set to a Node `Readable` object. See 
  * https://nodejs.org/api/stream.html#readablesetencodingencoding. By default, 
@@ -67,9 +93,9 @@ import { URLSearchParams } from "node:url";
  * By default, the receiver value is an object with a `data` property containing 
  * the result. But in the `lazy` or `lazy_iterable` response modes, the data 
  * property will be a getter function which returns the result. Use these modes 
- * if you expect extremely expensive response sizes. The iterable response 
- * calls the response one chunk at a time. When all chunks have been returned, 
- * the iterable getter will return `undefined`.
+ * if you expect extremely expensive response sizes. The "lazy_iterable" getter  
+ * gets the response one chunk at a time. When all chunks have been returned, 
+ * the "lazy_iterable" getter will return `undefined`.
  * @param {Boolean} spec.autoParseRequest If false, requests will not be 
  * automatically parsed. You must provide strings instead of objects as the 
  * request body.
@@ -91,19 +117,13 @@ import { URLSearchParams } from "node:url";
  * are concantentated with any headers provided from the factory `spec`.
  *  - `value.contentType`: String. See documentation for `spec.contentType`.
  * Specifying the content-type in the header overrides this property completely.
- *  - `value.autoParseRequest`: Boolean. If false, automatic request parsing is 
- * disabled, which means that if you are making a PUT/POST request, then the 
- * body must be a parsed string instead of an object. This will override the 
- * value provided in the factory.
- *  - `value.autoParseResponse`: Boolean. If false, requests sent as JSON will 
- * not be sent to the receiver as an object. The data will have to be manually 
- * parsed in the receiver. This will override the value provided in the 
- * factory.
- *  - `value.customCancel`: Function. A function factory. It takes a method 
- * which destroys the request object represented by the requestor and returns a 
- * new function. The "destroyer" method can optionally take a reason that, if 
- * provided, will cause the receiver to be called with that reason. If provided, 
- * this `customCancel` will override that provided by the factory.
+ *  - `value.autoParseRequest`: Boolean. See `spec.autoParseRequest`
+ * documentation. This will override the value provided in the facotory./
+ *  - `value.autoParseResponse`: Boolean. See `spec.autoParseResponse` 
+ * documentation. This will override the value provided in the factory.
+ *  - `value.customCancel`: Function. A function factory. If provided, this 
+ * `customCancel` will override that provided by the factory. See 
+ * `spec.customCancel` documentations.
  *  - `value.encoding`: String. See the `spec.encoding` documentation.
  *  - `value.responseMode`: String. See the `spec.responseMode` documentation.
  * 
@@ -143,6 +163,9 @@ export function createHttpsRequestor(spec) {
 
     if (typeof headers !== "object")
         headers = {};
+
+    if (typeof params !== "object")
+        params = {};
 
     const __other__ = Symbol("other");
     
@@ -198,11 +221,11 @@ export function createHttpsRequestor(spec) {
         let additionalPath = value.path;
 
         // requestor can disable automatic request parsing
-        if (![null, undefined].includes(value.autoParseRequest))
+        if (typeof value.autoParseRequest === "boolean")
             autoParseRequest = value.autoParseRequest;
 
         // requestor can disable automatic response parsing
-        if (![null, undefined].includes(value.autoParseResponse))
+        if (typeof value.autoParseResponse === "boolean")
             autoParseResponse = value.autoParseResponse;
 
         // if the `contentType` is not recognized, use default 
@@ -210,18 +233,12 @@ export function createHttpsRequestor(spec) {
             contentType = "default";
 
         // concantentate factory headers with any provided from requestor
-        if (
-                ![null, undefined].includes(additionalHeaders) && 
-                typeof additionalHeaders === "object"
-           )
+        if (typeof additionalHeaders === "object")
             headers = { ...headers, ...additionalHeaders };
         
         // concantenate factory query paramters with any provided from requestor
-        if (
-                ![null, undefined].includes(additionalParams) &&
-                typeof additionalParams === object
-           )
-            params = { ...(params || {}), ...additionalParams };
+        if (typeof additionalParams === "object")
+            params = { ...params, ...additionalParams };
 
         // let headers override `contentType` if headers defines it
         const contentTypeKey = Object.keys(headers).find(key => 
@@ -241,11 +258,8 @@ export function createHttpsRequestor(spec) {
         if ([null, undefined].includes(encoding))
             encoding = "utf-8";
 
-        // use responseMode if none is provided or unrecognized is provided
-        if (
-            [null, undefined].includes(responseMode) ||
-            !Object.values(ResponseMode).includes(responseMode)
-           )
+        // use default responseMode if unrecognized is provided
+        if (!Object.values(ResponseMode).includes(responseMode))
            responseMode = ResponseMode.DEFAULT;
                 
         // We have multiple subscriptions to error events, so if we execute  
@@ -256,8 +270,8 @@ export function createHttpsRequestor(spec) {
             callback = undefined;
         }
 
-        // If no logger provided, use no-op as logger
-        if ([null, undefined].includes(logger))
+        // If improper logger provided, use no-op as logger
+        if (typeof logger !== "function")
             logger = () => undefined;
 
         try {
@@ -301,8 +315,9 @@ export function createHttpsRequestor(spec) {
             if (
                 !Object.keys(headers).some(key =>
                     key.toLowerCase().includes("content-length"))
+                && typeof body === "string"
             )
-                headers["Content-Length"] = Buffer.byteLength(body || "");
+                headers["Content-Length"] = Buffer.byteLength(body);
             
             const options = {
                 hostname: urlObj.hostname,
@@ -382,7 +397,8 @@ export function createHttpsRequestor(spec) {
             
             request.on("error", reason => tryCallback(undefined, reason));
 
-            request.write(![null, undefined].includes(body) ? body : "");
+            if (typeof body === "string")
+                request.write(body);
             
             request.end();
 

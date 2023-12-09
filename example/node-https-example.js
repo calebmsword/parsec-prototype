@@ -9,8 +9,7 @@ from "./example-utils/create-https-requestor.js";
 const getCoffees = createHttpsRequestor({
     hostname: "api.sampleapis.com",
     path: "/coffee/hot",
-    method: "GET",
-    protocol: "https:"
+    method: "GET"
 });
 
 const postCaleb = createPostRequestor("https://reqres.in/api/users", {
