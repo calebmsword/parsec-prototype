@@ -9,8 +9,8 @@ export function requestifyPromise(thenable, cancellable) {
 
     return function promiseRequestified(callback) {
         promise
-            .then(callback)
-            .catch(reason => callback(undefined, reason));
+            .then(value => callback({ value }))
+            .catch(reason => callback({ reason }));
         if (cancellable === true) return cancel;
     }
 }

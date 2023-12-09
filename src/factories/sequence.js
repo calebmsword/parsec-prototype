@@ -11,7 +11,7 @@ import { parallel } from "./parallel.js";
  * 
  * const cheeseCredentialsRequestor = createFetchRequestor("https://cheese.com/api/cheese/vip-access-key");
  * 
- * // this requestor takes access key through `value`
+ * // this requestor takes access key through `message`
  * const fancyCheeseRequestor = createFetchRequestor("https://cheese.com/api/cheeses/vip");
  * 
  * const privilegedCheeseRequestor = parsec.sequence(
@@ -19,7 +19,7 @@ import { parallel } from "./parallel.js";
  * );
  * 
  * // make request
- * privilegedCheeseRequestor((value, reason) => {
+ * privilegedCheeseRequestor(({ value, reason }) => {
  *     if (value === undefined) {
  *         console.log("In error state! " + reason ? `Because: ${reason}` : "");
  *         return;
@@ -41,7 +41,8 @@ import { parallel } from "./parallel.js";
 export function sequence(requestors, spec = {}) {
     const { timeLimit } = spec;
 
-    return parallel(requestors, {
+    return parallel({
+        necesseties: requestors,
         timeLimit,
         timeOption: TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS,
         throttle: 1,

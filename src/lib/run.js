@@ -51,9 +51,9 @@ export function run(spec) {
      * This method is effectively a no-op if the cancellor array is nonexistent 
      * or if we have called every requestor available. This method recursively 
      * calls itself through the callback passed to the current requestor.
-     * @param {any} value 
+     * @param {any} message 
      */
-    function startRequestor(value) {
+    function startRequestor(message) {
         if (!exists(cancellors) || nextNumber >= requestors.length) return;
 
         // This variable stores the current value of `nextNumber` so it is 
@@ -64,7 +64,7 @@ export function run(spec) {
         const requestor = requestors[requestorIndex];
         try {
             cancellors[requestorIndex] = requestor(
-                (value, reason) => {
+                ({ value, reason }) => {
                     // If we are no longer running, this guard will gate the 
                     //     callback.
                     if (![cancellors, requestorIndex].every(exists)) return;
@@ -96,7 +96,7 @@ export function run(spec) {
                                          : initialValue
                         );
                 },
-                value
+                message
             );
         }
         catch(reason) {
@@ -113,7 +113,7 @@ export function run(spec) {
             // Keep going for now. If we should cancel the `run`, the caller 
             // will have done so in `action`. That decision is not our
             // responsibility.
-            startRequestor(value);
+            startRequestor(message);
         }
     }
 
@@ -169,7 +169,7 @@ export function run(spec) {
         if (exists(cancellors)) {
             cancellors.forEach(callback => {
                 try {
-                    if (isFunction(callback)) return callback(reason);
+                    if (isFunction(callback)) return callback({ reason });
                 } 
                 catch(exceptions) {/* ignore errors */}
             });

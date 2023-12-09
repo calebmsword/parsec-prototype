@@ -1,9 +1,9 @@
-import { FactoryName } from "../lib/constants.js";
+import { FactoryName, __factoryName__ } from "../lib/constants.js";
 import {
     exists, 
     getArrayLength, 
     checkRequestors, 
-    checkRequestorCallback, 
+    checkReceiver, 
     makeReason 
 } from "../lib/utils.js";
 import { run } from "../lib/run.js";
@@ -25,7 +25,7 @@ import { run } from "../lib/run.js";
  * );
  * 
  * // make request
- * cheeseRequestor((value, reason) => {
+ * cheeseRequestor(({ value, reason }) => {
  *     if (value === undefined) {
  *         console.log("In error state! " + reason ? `Because: ${reason}` : "");
  *         return;
@@ -50,9 +50,11 @@ export function race(requestors, spec = {}) {
         throttle
     } = spec;
 
-    const factoryName = throttle === 1 
-                        ? FactoryName.FALLBACK 
-                        : FactoryName.RACE;
+    // `spec[__factoryName__]` can be something other than 
+    // `FactoryName.PARALLEL` because other factories use `race` in their 
+    // logic. This is an internal option that the user should not use, hence it 
+    // not mentioned in the public documentation for parallel. 
+    const factoryName = spec[__factoryName__] || FactoryName.RACE;
 
     if (getArrayLength(requestors, factoryName) === 0) throw makeReason({
         factoryName,
@@ -62,7 +64,7 @@ export function race(requestors, spec = {}) {
     checkRequestors(requestors, factoryName);
 
     return function raceRequestor(callback, initialValue) {
-        checkRequestorCallback(callback, factoryName);
+        checkReceiver(callback, factoryName);
 
         let numberPending = requestors.length;
 
@@ -77,16 +79,16 @@ export function race(requestors, spec = {}) {
                     // We have a winner. Cancel the losers
                     cancel(makeReason({
                         factoryName,
-                        excuse: "Cancelling losers!",
-                        evidence: "cheese"
+                        excuse: "Cancelling loser!",
+                        evidence: requestorIndex
                     }));
-                    callback(value);
+                    callback({ value, reason });
                     callback = undefined;
                 }
                 else if (numberPending < 1) {
                     // Nothing succeeded. This is now a failure
                     cancel(reason);
-                    callback(undefined, reason);
+                    callback({ reason });
                     callback = undefined;
                 }
             },
@@ -97,7 +99,7 @@ export function race(requestors, spec = {}) {
                     evidence: timeLimit
                 });
                 cancel(reason);
-                callback(undefined, reason);
+                callback({ reason });
                 callback = undefined;
             },
             timeLimit,

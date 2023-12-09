@@ -1,3 +1,4 @@
+import { FactoryName, __factoryName__ } from "../lib/constants.js";
 import { race } from "./race.js";
 
 /**
@@ -17,7 +18,7 @@ import { race } from "./race.js";
  * });
  * 
  * // make request
- * gruyereRequestor_orParmIfWeMust((value, reason) => {
+ * gruyereRequestor_orParmIfWeMust(({ value, reason }) => {
  *     if (value === undefined) {
  *         console.log("In error state! " + reason ? `Because: ${reason}` : "");
  *         return;
@@ -42,6 +43,7 @@ export function fallback(requestors, spec = {}) {
     } = spec;
     return race(requestors, {
         timeLimit,
-        throttle: 1
+        throttle: 1,
+        [__factoryName__]: FactoryName.FALLBACK
     });
 }

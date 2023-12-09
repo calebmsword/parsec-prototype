@@ -5,8 +5,8 @@ export function createToJsonRequestor(cancellable = false) {
         try {
             return requestifyPromise(value.json(), cancellable)(callback);
         }
-        catch(error) {
-            callback(undefined, error)
+        catch(reason) {
+            callback({ reason });
         }
     }
 }

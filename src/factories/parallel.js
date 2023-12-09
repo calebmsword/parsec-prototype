@@ -2,7 +2,7 @@ import {
     exists,
     getArrayLength, 
     checkRequestors, 
-    checkRequestorCallback,
+    checkReceiver,
     makeReason
 } from "../lib/utils.js";
 import { __factoryName__, FactoryName, TimeOption } from "../lib/constants.js";
@@ -20,11 +20,11 @@ import { run } from "../lib/run.js";
  * const beerRequestor = createFetchRequestor("https://beer.com/api/beers");
  * 
  * const cheeseAndBeerRequestor = parsec.parallel(
- *     [cheeseRequestor, beerRequestor]
+ *     necesseties: [cheeseRequestor, beerRequestor]
  * );
  * 
  * // make request
- * cheeseAndBeerRequestor((value, reason) => {
+ * cheeseAndBeerRequestor(({ value, reason }) => {
  *     if (value === undefined) {
  *         console.log("In error state!" + reason ? ` Because: ${reason}` : "");
  *         return;
@@ -56,10 +56,14 @@ import { run } from "../lib/run.js";
  * `parallel` fails if the time limit is reached before every necessary 
  * requestor completes. This can be configured with `spec.timeOption`.
  * 
- * @param {Function[]} requestors An array of requestors.
+ * 
  * @param {Object} spec Configures parallel.
+ * @param {Function[]} spec.necesseties An array of requestors. The requestor 
+ * fails if any of these requestors fail.
  * @param {Function[]} spec.optionals An array of optional requestors. The 
- * `timeOption` property changes how this function handles optionals.
+ * requestor still succeeds even if any optionals fail. The `timeOption` 
+ * property changes how `parallel` handles optionals if a `timeLimit` is 
+ * provided.
  * @param {Number} spec.timeLimit Optional. A timeout in milliseconds. Failure 
  * occurs if the required requestors are not all complete before this time limit.
  * @param {String} spec.timeOption Determines how the optional requestors are 
@@ -70,8 +74,9 @@ import { run } from "../lib/run.js";
  * @returns {Function} Requestor which calls the array of requestors in 
  * "parallel".
  */
-export function parallel(requestors, spec = {}) {
+export function parallel(spec = {}) {
     const {
+        necesseties,
         optionals,
         timeLimit,
         throttle,
@@ -89,7 +94,7 @@ export function parallel(requestors, spec = {}) {
 
     let allRequestors;
 
-    const numberOfNecessities = getArrayLength(requestors, factoryName);
+    const numberOfNecessities = getArrayLength(necesseties, factoryName);
 
     if (numberOfNecessities === 0) {
         if (getArrayLength(optionals, factoryName) === 0) {
@@ -105,12 +110,12 @@ export function parallel(requestors, spec = {}) {
     else {
         if (getArrayLength(optionals, factoryName) === 0) {
             // some necesseties and no optionals
-            allRequestors = requestors;
+            allRequestors = necesseties;
             timeOption = TimeOption.IGNORE_OPTIONALS_IF_TIME_REMAINS;
         }
         else {
             // some necesseties and some optionals
-            allRequestors = [...requestors, ...optionals];
+            allRequestors = [...necesseties, ...optionals];
 
             // ensure the provided timeOption is one of those contained
             // in the TimeOption object
@@ -135,7 +140,7 @@ export function parallel(requestors, spec = {}) {
      * request.
      */
     return function parallelRequestor(callback, initialValue) {
-        checkRequestorCallback(callback, factoryName);
+        checkReceiver(callback, factoryName);
 
         let numberPending = allRequestors.length;
         let numberPendingNecessities = numberOfNecessities;
@@ -143,9 +148,11 @@ export function parallel(requestors, spec = {}) {
         const results = [];
 
         if (numberPending === 0) {
-            callback(factoryName === FactoryName.SEQUENCE 
-                     ? initialValue 
-                     : results)
+            callback({ 
+                value: factoryName === FactoryName.SEQUENCE 
+                       ? initialValue 
+                       : results
+            });
             return;
         }
 
@@ -159,7 +166,7 @@ export function parallel(requestors, spec = {}) {
             initialValue,
             action({ value, reason, requestorIndex }) {
 
-                results[requestorIndex] = value;
+                results[requestorIndex] = { value, reason };
 
                 numberPending--;
 
@@ -175,7 +182,7 @@ export function parallel(requestors, spec = {}) {
                         // This is the cancel function returned by `run`
                         cancel(reason);
 
-                        callback(undefined, reason);
+                        callback({ reason });
                         callback = undefined;
                         return;
                     }
@@ -195,11 +202,12 @@ export function parallel(requestors, spec = {}) {
                                 "requestors are being canceled if any were " + 
                                 "provided"
                     }));
-                    callback(
-                        factoryName === FactoryName.SEQUENCE 
-                        ? results.pop() 
-                        : results
-                    );
+                    callback({
+                        value: factoryName === FactoryName.SEQUENCE 
+                               ? results.pop() 
+                               : results,
+                        reason
+                    });
                     callback = undefined;
                 }
 
@@ -214,7 +222,7 @@ export function parallel(requestors, spec = {}) {
                     timeOption = TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS;
                     if (numberPendingNecessities < 1) {
                         cancel(reason);
-                        callback(results);
+                        callback({ value: results, reason });
                     }
                 }
                 else if (
@@ -223,11 +231,11 @@ export function parallel(requestors, spec = {}) {
                     cancel(reason);
 
                     if (numberPendingNecessities < 1) {
-                        callback(results);
+                        callback({ value: results });
                     }
                     // We failed if some necessities weren't handled in time
                     else {
-                        callback(undefined, reason)
+                        callback({ reason });
                     }
                     callback = undefined;
                 }

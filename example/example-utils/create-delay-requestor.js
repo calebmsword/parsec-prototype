@@ -5,7 +5,7 @@ export function createDelayRequestor(delay) {
     return function delayRequestor(callback) {
         let timerId = setTimeout(() => {
             timerId = undefined;
-            callback(delay);
+            callback({ value: delay });
         }, delay);
         return function cancelDelay() {
             if (exists(timerId)) {

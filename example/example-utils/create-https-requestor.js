@@ -18,7 +18,7 @@ import { URLSearchParams } from "node:url";
  *     }
  * });
  * 
- * doPostRequest((value, reason) => {
+ * doPostRequest(({ value, reason }) => {
  *     if (value === undefined) return console.log("failure because", reason);
  *     
  *     console.log(value.statusCode, value.statusMessage, value.headers,
@@ -342,7 +342,7 @@ export function createHttpsRequestor(spec) {
                     headers: response.headers
                 }
                 
-                response.on("error", error => tryCallback(undefined, error));
+                response.on("error", reason => tryCallback({ reason }));
 
                 response.on("data", chunk => chunks.push(chunk));
 
@@ -391,11 +391,11 @@ export function createHttpsRequestor(spec) {
                                 (i < chunks.length) ? chunks[i++] : undefined;
                     }
 
-                    tryCallback(result);
+                    tryCallback({ value: result });
                 });
             });
             
-            request.on("error", reason => tryCallback(undefined, reason));
+            request.on("error", reason => tryCallback({ reason }));
 
             if (typeof body === "string")
                 request.write(body);
@@ -409,8 +409,8 @@ export function createHttpsRequestor(spec) {
                 request.destroy(reason);
             }
         }
-        catch(error) {
-            tryCallback(undefined, error);
+        catch(reason) {
+            tryCallback({ reason });
         }
     }
 }

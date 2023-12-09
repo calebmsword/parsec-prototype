@@ -42,8 +42,8 @@ export function makeReason(spec) {
 
     const excuseText = exists(excuse) ? "" : `:${excuse}`;
     const error = new Error(`parsec.${factoryName}${excuseText}`);
-
-    return { ...error, evidence };
+    
+    return Object.assign(error, { evidence });
 }
 
 /**
@@ -73,10 +73,10 @@ export function getArrayLength(candidateArray, factoryName) {
  * @param {String} factoryName 
  * @returns {Boolean} 
  */
-export function checkRequestorCallback(callback, factoryName) {
-    if (!isFunction(callback) && callback.length !== 2) throw makeReason({
+export function checkReceiver(callback, factoryName) {
+    if (!isFunction(callback) && callback.length !== 1) throw makeReason({
         factoryName,
-        excuse: "A requestor callback must a function of two arguments!",
+        excuse: "A requestor callback must a function of one argument!",
         evidence: callback
     });
 }
