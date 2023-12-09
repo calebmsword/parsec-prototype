@@ -35,7 +35,7 @@ import { run } from "../lib/run.js";
  * });
  * ```
  * 
- * Unlike `Promise.race`, there is only failure if every requestor fails.
+ * There is only failure if every requestor fails.
  * 
  * @param {Function[]} requestors An array of requestors.
  * @param {Object} spec Configures race.
@@ -50,10 +50,10 @@ export function race(requestors, spec = {}) {
         throttle
     } = spec;
 
-    // `spec[__factoryName__]` can be something other than 
-    // `FactoryName.PARALLEL` because other factories use `race` in their 
-    // logic. This is an internal option that the user should not use, hence it 
-    // not mentioned in the public documentation for parallel. 
+    // `spec[__factoryName__]` can be something other than `FactoryName.RACE` 
+    // because other factories use `race` in their logic. This is an internal 
+    // option that the user should not use, hence it not mentioned in the public 
+    // documentation `race`. 
     const factoryName = spec[__factoryName__] || FactoryName.RACE;
 
     if (getArrayLength(requestors, factoryName) === 0) throw makeReason({
@@ -63,15 +63,15 @@ export function race(requestors, spec = {}) {
 
     checkRequestors(requestors, factoryName);
 
-    return function raceRequestor(callback, initialValue) {
-        checkReceiver(callback, factoryName);
+    return function raceRequestor(receiver, initialMessage) {
+        checkReceiver(receiver, factoryName);
 
         let numberPending = requestors.length;
 
         let cancel = run({
             factoryName,
             requestors,
-            initialValue,
+            initialMessage,
             action({ value, reason, requestorIndex }) {
                 numberPending--;
                 
@@ -82,14 +82,14 @@ export function race(requestors, spec = {}) {
                         excuse: "Cancelling loser!",
                         evidence: requestorIndex
                     }));
-                    callback({ value, reason });
-                    callback = undefined;
+                    receiver({ value, reason });
+                    receiver = undefined;
                 }
                 else if (numberPending < 1) {
                     // Nothing succeeded. This is now a failure
                     cancel(reason);
-                    callback({ reason });
-                    callback = undefined;
+                    receiver({ reason });
+                    receiver = undefined;
                 }
             },
             timeout() {
@@ -99,8 +99,8 @@ export function race(requestors, spec = {}) {
                     evidence: timeLimit
                 });
                 cancel(reason);
-                callback({ reason });
-                callback = undefined;
+                receiver({ reason });
+                receiver = undefined;
             },
             timeLimit,
             throttle

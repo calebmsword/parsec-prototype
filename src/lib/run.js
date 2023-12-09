@@ -8,34 +8,34 @@ import { exists, makeReason, immediatelyQueue, isFunction } from "./utils.js";
  * @param {String} spec.factoryName The name of the requestor factory which 
  * called `run`.
  * @param {Function[]} spec.requestors An array of requestor functions.
- * @param {any} spec.initialValue The value passed to the first requestor. In 
- * some cases, it will also be the value passed to all requestors.
+ * @param {any} spec.initialMessage The message passed to the first requestor. 
+ * In some cases, it will be the message passed to all requestors.
  * @param {Function} spec.action The action callback. It receives an object with 
  * `"value"`, `"reason"`, and `"requestorIndex"` keys. The action method is 
- * executed in the callback for each requestor in `spec.requestors`. The caller 
+ * executed in the receiver for each requestor in `spec.requestors`. The caller 
  * can inject specific behavior into `run` to suit their needs by providing this 
  * action callback.
  * The action callback receives the value and reason passed to the requestor, as 
  * well as a number indicating which index in `spec.requestors` points to the 
- * current requestor. The action callback is also called if the requestor 
- * callback enters a failure state (equivalently, if `value` is undefined).
- * @param {Function} spec.timeoutCallback A timeout callback. It takes no 
- * arguments. The caller of `run` can inject specific time-delayed asynchronous  
- * behavior, if necessary, by providing this optional method.
+ * current requestor. The action callback is also called if the receiver enters 
+ * enters a failure state (that is, if `value` is undefined).
+ * @param {Function} spec.timeout A timeout callback. It takes no arguments. The 
+ * caller of `run` can inject specific time-delayed asynchronous  behavior, if 
+ * necessary, by providing this optional method.
  * @param {Number} spec.timeLimit A time limit in milliseconds. When reached, 
- * timeoutCallback is passed into the event queue. A timeLimit of 0 causes 
- * timeoutCallback to be ignored.
+ * `timeout` is inserted into the event queue. A `timeLimit` of 0 causes 
+ * `timeout` to be ignored.
  * @param {Number} spec.throttle Determines the number of requestors which are
  * allowed to run simultaneously. This argument is optional. A value of 0 
  * indicates no throttle is applied.
- * @returns {Function} A cancel function. Executes cancel functions for all 
- * executed requestors which returned a cancel function.
+ * @returns {Function} A cancel function. Executes cancellors for all executed
+ * requestors which returned a cancellor.
  */
 export function run(spec) {
     const { 
         factoryName, 
         requestors, 
-        initialValue, 
+        initialMessage, 
         action, 
         timeout, 
         timeLimit, 
@@ -93,7 +93,7 @@ export function run(spec) {
                                          ? value
 
                                          // pass same message to each requestor
-                                         : initialValue
+                                         : initialMessage
                         );
                 },
                 message
@@ -145,8 +145,8 @@ export function run(spec) {
     // Notice startRequestor eventually calls itself again in the event queue, 
     // so if we don't get all requestors now, we will get the rest later.
     let amountToParallelize = Math.min(throttle || Infinity, requestors.length);
-    while (amountToParallelize-- > 0) immediatelyQueue(startRequestor, 
-                                                       initialValue);
+    while (amountToParallelize-- > 0) 
+        immediatelyQueue(startRequestor, initialMessage);
 
     const DEFAULT_CANCEL_REASON = makeReason({ 
         factoryName,
@@ -167,9 +167,9 @@ export function run(spec) {
         }
         
         if (exists(cancellors)) {
-            cancellors.forEach(callback => {
+            cancellors.forEach(cancellor => {
                 try {
-                    if (isFunction(callback)) return callback({ reason });
+                    if (isFunction(cancellor)) return cancellor(reason);
                 } 
                 catch(exceptions) {/* ignore errors */}
             });

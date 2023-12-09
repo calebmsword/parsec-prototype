@@ -2,7 +2,7 @@ import { __factoryName__, FactoryName, TimeOption } from "../lib/constants.js";
 import { parallel } from "./parallel.js";
 
 /**
- * Creates requestor. It calls requestors in order, passing results to the next.
+ * Calls requestors in order, passing results from the previous to the next.
  * 
  * @example
  * ```
@@ -21,7 +21,7 @@ import { parallel } from "./parallel.js";
  * // make request
  * privilegedCheeseRequestor(({ value, reason }) => {
  *     if (value === undefined) {
- *         console.log("In error state! " + reason ? `Because: ${reason}` : "");
+ *         console.log("Failure because", reason);
  *         return;
  *     }
  *     
@@ -31,12 +31,12 @@ import { parallel } from "./parallel.js";
  * 
  * Success occurs when every requestor succeeds. If any failure occurs in any 
  * requestor or the optional time limit is reached before the sequence ends, 
- * then failure is reached. 
+ * then the sequences fails. 
  * @param {Function[]} requestors An array of requestors.
  * @param {Object} spec Configures sequence.
  * @param {Number} spec.timeLimit The optional time limit.
  * @returns {Function} The sequence requestor. Upon execution, starts the 
- * sequence request.
+ * sequence.
  */
 export function sequence(requestors, spec = {}) {
     const { timeLimit } = spec;

@@ -2,7 +2,7 @@ import { FactoryName, __factoryName__ } from "../lib/constants.js";
 import { race } from "./race.js";
 
 /**
- * Try each requestor one at a time until one succeeds.
+ * Perform each requestor one at a time until one succeeds.
  *
  * @example
  * ```

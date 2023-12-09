@@ -16,19 +16,24 @@ const postCaleb = createPostRequestor("https://reqres.in/api/users", {
     body: {
         "name": "Caleb Sword",
         "job": "Software Engineer"
+    },
+    headers: {
+        "content-type": "application/x-www-form-urlencoded"
     }
 });
 
 const getUser = createGetRequestor("https://reqres.in/api/users/1");
 
-const performAllRequests = parsec.parallel([getCoffees, postCaleb, getUser]);
+const performAllRequests = parsec.parallel([
+    getCoffees, 
+    postCaleb, 
+    getUser
+]);
 
 performAllRequests(response => {
     if (!response.value) return console.log("Failure because", response.reason);
 
-    response.value.forEach(({ value, reason }) => {
-        if (value === undefined) return console.log("Failure because", reason);
-
+    response.value.forEach(({ value }) => {
         console.log(value.statusCode, value.statusMessage);
         console.log("Number of headers:", Object.keys(value.headers).length);
         if (Array.isArray(value.data)) {

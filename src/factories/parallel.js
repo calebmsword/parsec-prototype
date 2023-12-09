@@ -9,7 +9,7 @@ import { __factoryName__, FactoryName, TimeOption } from "../lib/constants.js";
 import { run } from "../lib/run.js";
 
 /**
- * Makes requestor which causes many requestors to be in effect simultaneously.
+ * Creates a requestor which executes multiple requestors concurrently.
  * 
  * @example
  * ```
@@ -36,14 +36,14 @@ import { run } from "../lib/run.js";
  * ```
  * 
  * The result for each parallelized requestor is stored in an array. If the 
- * requestor created by this factory succeeds, then this array is passed as the 
- * `value` argument in the callback for that requestor.
+ * requestor created by this factory succeeds, then the receiver response will 
+ * contain the array.
  * 
- * This is not parallelism on the JavaScript side. We are giving the server (or 
+ * This is not parallelism in the JavaScript. We are giving the server (or 
  * whatever the recepient of the requestor may be) an opportunity to handle the 
  * requests in parallel if it has the capacity to do so.
  * 
- * A throttle can be used if the receiver can only handle so many simultaneous 
+ * A throttle can be used if the server can only handle so many simultaneous 
  * requests.
  * 
  * The user can provide a second array of optional requestors. By default, any 
@@ -52,9 +52,8 @@ import { run } from "../lib/run.js";
  * be canceled if possible. This behavior can be configured with 
  * `spec.timeOption`. See the documentation for the `TimeOption` object.
  * 
- * A time limit can be provided. By default, this requestor returned by 
- * `parallel` fails if the time limit is reached before every necessary 
- * requestor completes. This can be configured with `spec.timeOption`.
+ * A time limit can be provided. The requestor returned by `parallel` fails if 
+ * the time limit is reached before every necessary requestor completes.
  * 
  * @param {Function[]|Object} necesseties If an array, then the argument is an 
  * array of requestors. The requestor fails if any of these requestors fail. If 
@@ -70,7 +69,7 @@ import { run } from "../lib/run.js";
  * handled when the required requestors are all complete. See the documentation 
  * for the `TimeOption` object.
  * @param {Number} spec.throttle The number of requestors which can be 
- * simultaneously handled by the server. A throttle of 0 indicates no limitation.
+ * simultaneously handled by the server. A throttle of 0 indicates no throttle.
  * @returns {Function} Requestor which calls the array of requestors in 
  * "parallel".
  */
@@ -99,30 +98,30 @@ export function parallel(necesseties, spec = {}) {
         timeOption = TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS 
     } = spec;
 
-    let allRequestors;
+    let requestors;
 
     const numberOfNecessities = getArrayLength(necesseties, factoryName);
 
     if (numberOfNecessities === 0) {
         if (getArrayLength(optionals, factoryName) === 0) {
             // no necesseties and no optionals
-            allRequestors = [];
+            requestors = [];
         }
         else {
             // no necesseties and some optionals
-            allRequestors = optionals;
+            requestors = optionals;
             timeOption = TimeOption.TRY_OPTIONALS_IF_TIME_REMAINS;
         }
     }
     else {
         if (getArrayLength(optionals, factoryName) === 0) {
             // some necesseties and no optionals
-            allRequestors = necesseties;
+            requestors = necesseties;
             timeOption = TimeOption.IGNORE_OPTIONALS_IF_TIME_REMAINS;
         }
         else {
             // some necesseties and some optionals
-            allRequestors = [...necesseties, ...optionals];
+            requestors = [...necesseties, ...optionals];
 
             // ensure the provided timeOption is one of those contained
             // in the TimeOption object
@@ -136,7 +135,7 @@ export function parallel(necesseties, spec = {}) {
         }
     }
 
-    checkRequestors(allRequestors, factoryName);
+    checkRequestors(requestors, factoryName);
     
     /**
      * A requestor which executes an array of requestors in "parallel".
@@ -146,18 +145,18 @@ export function parallel(necesseties, spec = {}) {
      * @returns {Function} A cancel function. Attempts to cancel the parallel 
      * request.
      */
-    return function parallelRequestor(callback, initialValue) {
-        checkReceiver(callback, factoryName);
+    return function parallelRequestor(receiver, initialMessage) {
+        checkReceiver(receiver, factoryName);
 
-        let numberPending = allRequestors.length;
+        let numberPending = requestors.length;
         let numberPendingNecessities = numberOfNecessities;
 
         const responses = [];
 
         if (numberPending === 0) {
-            callback(
+            receiver(
                 factoryName === FactoryName.SEQUENCE 
-                ? { value: initialValue } 
+                ? { value: initialMessage } 
                 : { value: responses }
             );
             return;
@@ -169,8 +168,8 @@ export function parallel(necesseties, spec = {}) {
         // `action` callback uses it.
         const cancel = run({
             factoryName,
-            requestors: allRequestors,
-            initialValue,
+            requestors,
+            initialMessage,
             action({ value, reason, requestorIndex }) {
                 
                 responses[requestorIndex] = { value, reason }
@@ -189,8 +188,8 @@ export function parallel(necesseties, spec = {}) {
                         // This is the cancel function returned by `run`
                         cancel(reason);
 
-                        callback({ reason });
-                        callback = undefined;
+                        receiver({ reason });
+                        receiver = undefined;
                         return;
                     }
                 }
@@ -206,15 +205,14 @@ export function parallel(necesseties, spec = {}) {
                     cancel(makeReason({
                         factoryName,
                         excuse: "All necessities are complete, optional " + 
-                                "requestors are being canceled if any were " + 
-                                "provided"
+                                "requestors are being canceled"
                     }));
-                    callback(
+                    receiver(
                         factoryName === FactoryName.SEQUENCE 
                         ? responses.pop() 
                         : { value: responses, reason }
                     );
-                    callback = undefined;
+                    receiver = undefined;
                 }
 
             },
@@ -228,7 +226,7 @@ export function parallel(necesseties, spec = {}) {
                     timeOption = TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS;
                     if (numberPendingNecessities < 1) {
                         cancel(reason);
-                        callback({ value: responses, reason });
+                        receiver({ value: responses, reason });
                     }
                 }
                 else if (
@@ -237,13 +235,13 @@ export function parallel(necesseties, spec = {}) {
                     cancel(reason);
 
                     if (numberPendingNecessities < 1) {
-                        callback({ value: responses });
+                        receiver({ value: responses });
                     }
                     // We failed if some necessities weren't handled in time
                     else {
-                        callback({ reason });
+                        receiver({ reason });
                     }
-                    callback = undefined;
+                    receiver = undefined;
                 }
             },
             timeLimit,

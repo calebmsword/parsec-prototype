@@ -67,7 +67,7 @@ export function getArrayLength(candidateArray, factoryName) {
 }
 
 /**
- * Returns true if the provided callback is a proper requestor callback.
+ * Returns true if the provided callback is a proper receiver.
  * A reason is thrown otherwise.
  * @param {Function} callback 
  * @param {String} factoryName 
@@ -76,7 +76,7 @@ export function getArrayLength(candidateArray, factoryName) {
 export function checkReceiver(callback, factoryName) {
     if (!isFunction(callback) && callback.length !== 1) throw makeReason({
         factoryName,
-        excuse: "A requestor callback must a function of one argument!",
+        excuse: "A receiver must be a function of one argument!",
         evidence: callback
     });
 }

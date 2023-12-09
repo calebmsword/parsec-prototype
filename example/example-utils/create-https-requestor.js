@@ -28,13 +28,13 @@ import { URLSearchParams } from "node:url";
  * });
  * ```
  * 
- * For convenience, and if applicable, the request body is automatically assumed 
- * to be JSON by default. This means you can pass objects as the request body 
- * instead of strings. If you specify `contentType` of "x-www-form-urlencoded", 
- * then the request body will be automatically stringified into a URL query 
- * parameter string. You can disabled this automatic parsing if you would like 
- * (in that case, you will need to provide a string to the request body instead 
- * of an object).
+ * For convenience, the request body is automatically parsed into a string if an 
+ * object is provided. This string will typically be a JSON string, but if you 
+ * specify a `contentType` of "x-www-form-urlencoded", or provide a header which 
+ * specifies that content-type, then the request body will be automatically 
+ * stringified into a URL query parameter string. You can disabled this 
+ * automatic parsing if you would like, in which case you will need to provide a 
+ * string to the request body instead of an object.
  *  
  * If the response data is sent as JSON, it is automatically parsed into an 
  * object. This behavior can be disabled.
@@ -91,10 +91,10 @@ import { URLSearchParams } from "node:url";
  * @param {String} spec.responseMode Is either `default`, `lazy`, or 
  * `lazy_iterable`. If neither of these is provided, then `default` is used. 
  * By default, the receiver value is an object with a `data` property containing 
- * the result. But in the `lazy` or `lazy_iterable` response modes, the data 
- * property will be a getter function which returns the result. Use these modes 
- * if you expect extremely expensive response sizes. The "lazy_iterable" getter  
- * gets the response one chunk at a time. When all chunks have been returned, 
+ * the result. But in the `lazy` response modes, the data property will be a 
+ * getter function which returns the result. The "lazy_iterable" getter returns 
+ * an object which adheres to the Iterable protocol. Iterating over the iterable 
+ * gets the response one chunk at a time. 
  * the "lazy_iterable" getter will return `undefined`.
  * @param {Boolean} spec.autoParseRequest If false, requests will not be 
  * automatically parsed. You must provide strings instead of objects as the 
@@ -187,13 +187,13 @@ export function createHttpsRequestor(spec) {
         "default": JSON.stringify,
         "x-www-form-urlencoded": searchParamatize,
         "application/x-www-form-urlencoded": searchParamatize,
-        [__other__]: alreadyParsed => alreadyParsed
+        [__other__]: body => String(body)
     }
     
     const ResponseMode = {
         DEFAULT: "default",
         LAZY: "lazy",
-        LAZY_ITERATOR: "lazy_iterator"
+        LAZY_ITERABLE: "lazy_iterable"
     }
 
     return function httpsRequestor(callback, value) {
@@ -202,7 +202,7 @@ export function createHttpsRequestor(spec) {
 
         // requestor can override body, contentType, customCancel, encoding, or
         // responseMode
-        body = ![null, undefined].includes(value.body) ? value.body : body;
+        body = typeof value.body === "object" ? value.body : body;
         contentType = ![null, undefined].includes(value.contentType) 
                       ? value.contentType 
                       : contentType;
@@ -305,12 +305,9 @@ export function createHttpsRequestor(spec) {
                 headers["Content-Type"] = ContentType[contentType];
             
             // Automatically parse request
-            if (
-                ![null, undefined].includes(body) && 
-                autoParseRequest !== false
-               )
-                body = Stringify[contentType](body);
-            
+            if (typeof body === "object" && autoParseRequest !== false)
+                body = Stringify[contentType](body)
+
             // provide content-length to headers if not already there
             if (
                 !Object.keys(headers).some(key =>
@@ -348,7 +345,7 @@ export function createHttpsRequestor(spec) {
 
                 response.on("close", () => {
 
-                    // how chunks are handled (by default, no autoparsing)
+                    // how chunks are handled (initially, no autoparsing)
                     let chunksHandler = unparsed => unparsed;
 
                     // If auto-parsing response, JSON.parse response if it is 
@@ -362,33 +359,42 @@ export function createHttpsRequestor(spec) {
                     ))
                         chunksHandler = JSON.parse;
                     
-                    const msg = "Failed to autoparse result because:"
+                    const msg = "Failed to autoparse result because"
                     
+                    let allChunks;
                     switch (responseMode) {
                         case ResponseMode.DEFAULT:
+                            allChunks = chunks.join("");
                             try {
-                                result.data = chunksHandler(chunks.join(""));
+                                result.data = chunksHandler(allChunks);
                             }
                             catch(error) {
                                 logger(`${msg}: ${error}`);
-                                return chunks.join("");
+                                return allChunks;
                             }
                             break;
                         case ResponseMode.LAZY:
+                            allChunks = chunks.join("");
                             result.data = () => {
                                 try {
-                                    return chunksHandler(chunks.join(""))
+                                    return chunksHandler(allChunks)
                                 }
                                 catch(error) {
                                     logger(`${msg}: ${error}`);
-                                    return chunks.join("");
+                                    return allChunks;
                                 }
                             };
                             break;
-                        case ResponseMode.LAZY_ITERATOR:
+                        case ResponseMode.LAZY_ITERABLE:
                             let i = 0;
-                            result.data = () =>
-                                (i < chunks.length) ? chunks[i++] : undefined;
+                            result.data = {
+                                [Symbol.iterator]: () => ({
+                                    next: () => ({
+                                        done: i >= chunks.length,
+                                        value: chunks[i++]
+                                    })
+                                })
+                            };
                     }
 
                     tryCallback({ value: result });
@@ -416,13 +422,13 @@ export function createHttpsRequestor(spec) {
 }
 
 function createSpecificMethodRequestor(method) {
-    return function specificMethodRequestor(urlOrSpec, ...spec) {
-        if (typeof urlOrSpec === "string")
-            return createHttpsRequestor({ 
-                url: urlOrSpec, 
-                method, 
-                ...(spec.method = method)
-            });
+    return function specificMethodRequestor(urlOrSpec, spec) {
+        if (
+            typeof urlOrSpec === "string" && 
+            ["null", "undefined", "object"].includes(typeof spec)
+        ) {
+            return createHttpsRequestor({ url: urlOrSpec, method, ...spec });
+        }
         else if (typeof urlOrSpec !== "object")
             throw new Error(
                 "if you provide one argument, it must be a `spec` object you " + 
@@ -430,8 +436,10 @@ function createSpecificMethodRequestor(method) {
                 "take two arguments, where the first is the endpoint of the " + 
                 "request and the second is a `spec` object you could pass to " + 
                 "`createHttpsRequestor`.");
-        else
-            return createHttpsRequestor({ method, ...urlOrSpec })
+        else{
+            urlOrSpec.method = method;
+            return createHttpsRequestor({ ...urlOrSpec });
+        }
     }
 }
 
