@@ -16,9 +16,6 @@ const postCaleb = createPostRequestor("https://reqres.in/api/users", {
     body: {
         "name": "Caleb Sword",
         "job": "Software Engineer"
-    },
-    headers: {
-        "content-type": "application/x-www-form-urlencoded"
     }
 });
 
