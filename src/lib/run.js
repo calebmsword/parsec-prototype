@@ -1,5 +1,5 @@
 import { FactoryName } from "./constants.js";
-import { exists, makeReason, eventually, isFunction } from "./utils.js";
+import { exists, makeReason, immediatelyQueue, isFunction } from "./utils.js";
 
 /**
  * Launches requestors and manages timing, cancellation, and throttling.
@@ -86,14 +86,14 @@ export function run(spec) {
                     // need to pollute the event queue with callbacks that do 
                     // nothing so we'll add this extra check.
                     if (nextNumber < requestors.length)
-                        eventually(startRequestor,
-                                   factoryName === FactoryName.SEQUENCE 
+                        immediatelyQueue(startRequestor,
+                                         factoryName === FactoryName.SEQUENCE 
 
-                                   // pass result from former requestor to next
-                                   ? value
+                                         // pass result from former to next
+                                         ? value
 
-                                   // pass the same message to each requestor
-                                   : initialValue
+                                         // pass same message to each requestor
+                                         : initialValue
                         );
                 },
                 value
@@ -145,7 +145,8 @@ export function run(spec) {
     // Notice startRequestor eventually calls itself again in the event queue, 
     // so if we don't get all requestors now, we will get the rest later.
     let amountToParallelize = Math.min(throttle || Infinity, requestors.length);
-    while (amountToParallelize-- > 0) eventually(startRequestor, initialValue);
+    while (amountToParallelize-- > 0) immediatelyQueue(startRequestor, 
+                                                       initialValue);
 
     const DEFAULT_CANCEL_REASON = makeReason({ 
         factoryName,

@@ -13,7 +13,7 @@ export function exists(value) {
  * @param {Function} callback 
  * @param  {...any} args 
  */
-export function eventually(callback, ...args) {
+export function immediatelyQueue(callback, ...args) {
     setTimeout(callback, 0, ...args);
 }
 
