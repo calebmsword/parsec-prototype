@@ -20,13 +20,13 @@ import { run } from "../lib/run.js";
  * const beerRequestor = createFetchRequestor("https://beer.com/api/beers");
  * 
  * const cheeseAndBeerRequestor = parsec.parallel(
- *     necesseties: [cheeseRequestor, beerRequestor]
+ *     [cheeseRequestor, beerRequestor]
  * );
  * 
  * // make request
  * cheeseAndBeerRequestor(({ value, reason }) => {
  *     if (value === undefined) {
- *         console.log("In error state!" + reason ? ` Because: ${reason}` : "");
+ *         console.log("Failure because", reason);
  *         return;
  *     }
  *     
@@ -56,10 +56,10 @@ import { run } from "../lib/run.js";
  * `parallel` fails if the time limit is reached before every necessary 
  * requestor completes. This can be configured with `spec.timeOption`.
  * 
- * 
+ * @param {Function[]|Object} necesseties If an array, then the argument is an 
+ * array of requestors. The requestor fails if any of these requestors fail. If 
+ * this argument is an object, then it replaces the `spec` parameter.
  * @param {Object} spec Configures parallel.
- * @param {Function[]} spec.necesseties An array of requestors. The requestor 
- * fails if any of these requestors fail.
  * @param {Function[]} spec.optionals An array of optional requestors. The 
  * requestor still succeeds even if any optionals fail. The `timeOption` 
  * property changes how `parallel` handles optionals if a `timeLimit` is 
@@ -74,9 +74,16 @@ import { run } from "../lib/run.js";
  * @returns {Function} Requestor which calls the array of requestors in 
  * "parallel".
  */
-export function parallel(spec = {}) {
+export function parallel(necesseties, spec = {}) {
+    if (
+        !Array.isArray(necesseties)
+        && typeof necesseties === "object"
+    ) {
+        spec = necesseties;
+        necesseties = [];
+    }
+
     const {
-        necesseties,
         optionals,
         timeLimit,
         throttle,
@@ -145,14 +152,14 @@ export function parallel(spec = {}) {
         let numberPending = allRequestors.length;
         let numberPendingNecessities = numberOfNecessities;
 
-        const results = [];
+        const responses = [];
 
         if (numberPending === 0) {
-            callback({ 
-                value: factoryName === FactoryName.SEQUENCE 
-                       ? initialValue 
-                       : results
-            });
+            callback(
+                factoryName === FactoryName.SEQUENCE 
+                ? { value: initialValue } 
+                : { value: responses }
+            );
             return;
         }
 
@@ -165,8 +172,8 @@ export function parallel(spec = {}) {
             requestors: allRequestors,
             initialValue,
             action({ value, reason, requestorIndex }) {
-
-                results[requestorIndex] = { value, reason };
+                
+                responses[requestorIndex] = { value, reason }
 
                 numberPending--;
 
@@ -202,12 +209,11 @@ export function parallel(spec = {}) {
                                 "requestors are being canceled if any were " + 
                                 "provided"
                     }));
-                    callback({
-                        value: factoryName === FactoryName.SEQUENCE 
-                               ? results.pop() 
-                               : results,
-                        reason
-                    });
+                    callback(
+                        factoryName === FactoryName.SEQUENCE 
+                        ? responses.pop() 
+                        : { value: responses, reason }
+                    );
                     callback = undefined;
                 }
 
@@ -222,7 +228,7 @@ export function parallel(spec = {}) {
                     timeOption = TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS;
                     if (numberPendingNecessities < 1) {
                         cancel(reason);
-                        callback({ value: results, reason });
+                        callback({ value: responses, reason });
                     }
                 }
                 else if (
@@ -231,7 +237,7 @@ export function parallel(spec = {}) {
                     cancel(reason);
 
                     if (numberPendingNecessities < 1) {
-                        callback({ value: results });
+                        callback({ value: responses });
                     }
                     // We failed if some necessities weren't handled in time
                     else {

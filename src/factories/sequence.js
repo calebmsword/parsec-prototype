@@ -41,8 +41,7 @@ import { parallel } from "./parallel.js";
 export function sequence(requestors, spec = {}) {
     const { timeLimit } = spec;
 
-    return parallel({
-        necesseties: requestors,
+    return parallel(requestors, {
         timeLimit,
         timeOption: TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS,
         throttle: 1,

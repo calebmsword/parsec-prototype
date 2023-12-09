@@ -21,9 +21,7 @@ const postCaleb = createPostRequestor("https://reqres.in/api/users", {
 
 const getUser = createGetRequestor("https://reqres.in/api/users/1");
 
-const performAllRequests = parsec.parallel({
-    necesseties: [getCoffees, postCaleb, getUser]
-});
+const performAllRequests = parsec.parallel([getCoffees, postCaleb, getUser]);
 
 performAllRequests(response => {
     if (!response.value) return console.log("Failure because", response.reason);
