@@ -1,4 +1,5 @@
 import parsec from "../src/index.js";
+import { exists } from "../src/lib/utils.js";
 import { 
     createHttpsRequestor,
     createPostRequestor,
@@ -27,16 +28,14 @@ const performAllRequests = parsec.parallel([
     getUser
 ]);
 
-performAllRequests(response => {
-    if (!response.value) return console.log("Failure because", response.reason);
+performAllRequests(result => {
+    if (!exists(result.value)) return console.log("Failure:", result.reason);
 
-    response.value.forEach(({ value }) => {
+    result.value.forEach(({ value }) => {
         console.log(value.statusCode, value.statusMessage);
         console.log("Number of headers:", Object.keys(value.headers).length);
-        if (Array.isArray(value.data)) {
-            console.log(value.data.map(e => e.title));
-            return;
-        }
+        if (Array.isArray(value.data))
+            return console.log(value.data[0]);
         console.log(value.data);
     });    
 });

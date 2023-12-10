@@ -24,10 +24,10 @@ const doRaces = parsec.parallel({
     optionals: [race, raceTimeLimited, raceThrottled]
 });
 
-doRaces(response => {
-    if (!response.value) return console.log("Failure because", response.reason);
+doRaces(result => {
+    if (!result.value) return console.log("Failure because", result.reason);
 
-    response.value.forEach(({ value, reason }) => {
+    result.value.forEach(({ value, reason }) => {
         if (value === undefined) return console.log("Failure because", reason);
         console.log(value);
     })

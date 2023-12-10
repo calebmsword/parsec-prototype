@@ -151,13 +151,13 @@ export function parallel(necesseties, spec = {}) {
         let numberPending = requestors.length;
         let numberPendingNecessities = numberOfNecessities;
 
-        const responses = [];
+        const results = [];
 
         if (numberPending === 0) {
             receiver(
                 factoryName === FactoryName.SEQUENCE 
                 ? { value: initialMessage } 
-                : { value: responses }
+                : { value: results }
             );
             return;
         }
@@ -172,7 +172,7 @@ export function parallel(necesseties, spec = {}) {
             initialMessage,
             action({ value, reason, requestorIndex }) {
                 
-                responses[requestorIndex] = { value, reason }
+                results[requestorIndex] = { value, reason }
 
                 numberPending--;
 
@@ -209,8 +209,8 @@ export function parallel(necesseties, spec = {}) {
                     }));
                     receiver(
                         factoryName === FactoryName.SEQUENCE 
-                        ? responses.pop() 
-                        : { value: responses, reason }
+                        ? results.pop() 
+                        : { value: results, reason }
                     );
                     receiver = undefined;
                 }
@@ -226,7 +226,7 @@ export function parallel(necesseties, spec = {}) {
                     timeOption = TimeOption.SKIP_OPTIONALS_IF_TIME_REMAINS;
                     if (numberPendingNecessities < 1) {
                         cancel(reason);
-                        receiver({ value: responses, reason });
+                        receiver({ value: results, reason });
                     }
                 }
                 else if (
@@ -235,7 +235,7 @@ export function parallel(necesseties, spec = {}) {
                     cancel(reason);
 
                     if (numberPendingNecessities < 1) {
-                        receiver({ value: responses });
+                        receiver({ value: results });
                     }
                     // We failed if some necessities weren't handled in time
                     else {

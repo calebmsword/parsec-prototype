@@ -307,7 +307,7 @@ export function createHttpsRequestor(spec) {
             // Automatically parse request
             if (typeof body === "object" && autoParseRequest !== false)
                 body = Stringify[contentType](body)
-
+            
             // provide content-length to headers if not already there
             if (
                 !Object.keys(headers).some(key =>
@@ -430,12 +430,15 @@ function createSpecificMethodRequestor(method) {
             return createHttpsRequestor({ url: urlOrSpec, method, ...spec });
         }
         else if (typeof urlOrSpec !== "object")
-            throw new Error(
+            throw Object.assign(
+                new Error(
                 "if you provide one argument, it must be a `spec` object you " + 
                 "could pass to `createHttpsRequestor`. Otherwise, it must " + 
                 "take two arguments, where the first is the endpoint of the " + 
                 "request and the second is a `spec` object you could pass to " + 
-                "`createHttpsRequestor`.");
+                "`createHttpsRequestor`."),
+                { evidence: { urlOrSpec, spec } }
+            );
         else{
             urlOrSpec.method = method;
             return createHttpsRequestor({ ...urlOrSpec });
