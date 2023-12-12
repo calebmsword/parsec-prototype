@@ -261,7 +261,11 @@ export function createHttpsRequestor(spec) {
         // use default responseMode if unrecognized is provided
         if (!Object.values(ResponseMode).includes(responseMode))
            responseMode = ResponseMode.DEFAULT;
-                
+
+        // If improper logger provided, use no-op as logger
+        if (typeof logger !== "function")
+            logger = () => undefined;
+
         // We have multiple subscriptions to error events, so if we execute  
         // callback directly for each, we sometimes have multiple errors printed
         function tryCallback(value, reason) {
@@ -269,10 +273,6 @@ export function createHttpsRequestor(spec) {
             callback(value, reason);
             callback = undefined;
         }
-
-        // If improper logger provided, use no-op as logger
-        if (typeof logger !== "function")
-            logger = () => undefined;
 
         try {
 
@@ -354,6 +354,7 @@ export function createHttpsRequestor(spec) {
                             .some(key =>
                                 key.toLowerCase().includes("content-type") && 
                                 response.headers[key]
+                                    .toLowerCase()
                                     .includes("application/json") &&
                                 autoParseResponse !== false
                     ))
@@ -446,7 +447,46 @@ function createSpecificMethodRequestor(method) {
     }
 }
 
+/**
+ * Creates a requestor for making GET requests.
+ * @param {String} url The endpoint of the GET request.
+ * @param {Object} spec See the documentation for the `spec` parameter in 
+ * `createHttpsRequestor`. If you provide a method property in this spec, it is 
+ * ignored.
+ * @returns {Function} A requestor. See documentation for the return value of 
+ * `createHttpRequestor`.
+ */
 export const createGetRequestor = createSpecificMethodRequestor("GET");
+
+/**
+ * Creates a requestor for making POST requests.
+ * @param {String} url The endpoint of the POST request.
+ * @param {Object} spec See the documentation for the `spec` parameter in 
+ * `createHttpsRequestor`. If you provide a method property in this spec, it is 
+ * ignored.
+ * @returns {Function} A requestor. See documentation for the return value of 
+ * `createHttpRequestor`.
+ */
 export const createPostRequestor = createSpecificMethodRequestor("POST");
+
+/**
+ * Creates a requestor for making PUT requests.
+ * @param {String} url The endpoint of the PUT request.
+ * @param {Object} spec See the documentation for the `spec` parameter in 
+ * `createHttpsRequestor`. If you provide a method property in this spec, it is 
+ * ignored.
+ * @returns {Function} A requestor. See documentation for the return value of 
+ * `createHttpRequestor`.
+ */
 export const createPutRequestor = createSpecificMethodRequestor("PUT");
+
+/**
+ * Creates a requestor for making DELETE requests.
+ * @param {String} url The endpoint of the DELETE request.
+ * @param {Object} spec See the documentation for the `spec` parameter in 
+ * `createHttpsRequestor`. If you provide a method property in this spec, it is 
+ * ignored.
+ * @returns {Function} A requestor. See documentation for the return value of 
+ * `createHttpRequestor`.
+ */
 export const createDeleteRequestor = createSpecificMethodRequestor("DELETE");

@@ -1,13 +1,14 @@
 import parsec from "../src/index.js";
-import { requestorUtils } 
-    from "./example-utils/ergonomic-https-factories.js"
+import { requestorUtils } from "./example-utils/ergonomic-https-factories.js"
 import { exists } from "../src/lib/utils.js";
 
 // with parsec
 parsec.sequence([
     requestorUtils.getRequest("https://api.sampleapis.com/coffee/hot"),
     requestorUtils.map(response => response.data[0]),
-    requestorUtils.postRequest("https://reqres.in/api/users"),
+    requestorUtils.postRequest("https://reqres.in/api/users", {
+        headers: { "Content-Type": "application/json" }
+    }),
     requestorUtils.map(response => response.data)
 ])
 (({ value, reason }) => {

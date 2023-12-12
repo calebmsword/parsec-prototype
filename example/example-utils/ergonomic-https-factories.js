@@ -33,11 +33,11 @@ function map(mapper) {
  * 400 or 500 error.
  * @returns {Function} The requestor.
  */
-function checkStatusCode() {
+function checkStatusCode(methodName) {
     return map(response => {
         if (response.statusCode >= 400 && response.statusCode < 600) {
             throw Object.assign(
-                new Error(response.statusMessage), 
+                new Error(`In ${methodName}: ${response.statusMessage}`), 
                 { evidence: response }
             );
         }
@@ -45,42 +45,44 @@ function checkStatusCode() {
     })
 }
 
+ /**
+ * Creates a requestor which makes a GET request.
+ * If the response returns a 400 or 500 response code, the requestor fails.
+ * @param {String} url The endpoint for the request.
+ * @param {Object} spec The `spec` hash which can be passed to 
+ * `createGetRequestor`.
+ * @returns {Function} The requestor.
+ */
+function getRequest(url, spec) {
+    return parsec.sequence([
+        createGetRequestor(url, spec),
+        checkStatusCode(getRequest.name)
+    ]);
+}
+
+ /**
+ * Creates a requestor that makes a POST request.
+ * Whatever message is passed to this requestor is used as the body for the 
+ * POST request. If the response returns a 400 or 500 response code, the 
+ * requestor fails.
+ * @param {String} url The endpoint for the request.
+ * @param {Object} spec The `spec` hash which can be passed to 
+ * `createPostRequestor`.
+ * @returns {Function} The requestor.
+ */
+function postRequest(url, spec) {
+    return parsec.sequence([
+        (receiver, message) => 
+            createPostRequestor(url, spec)(receiver, { body: message }),
+        checkStatusCode(postRequest.name)
+    ]);
+}
+
 /**
  * A collection of useful requestor factories.
  */
 export const requestorUtils = Object.freeze({
     map,
-
-    /**
-     * Creates a requestor which makes a GET request.
-     * If the response returns a 400 or 500 response code, the requestor fails.
-     * @param {String} url The endpoint for the request.
-     * @param {Object} spec The `spec` hash which can be passed to 
-     * `createGetRequestor`.
-     * @returns {Function} The requestor.
-     */
-    getRequest(url, spec) {
-        return parsec.sequence([
-            createGetRequestor(url, spec),
-            checkStatusCode()
-        ]);
-    },
-
-    /**
-     * Creates a requestor that makes a POST request.
-     * Whatever message is passed to this requestor is used as the body for the 
-     * POST request. If the response returns a 400 or 500 response code, the 
-     * requestor fails.
-     * @param {String} url The endpoint for the request.
-     * @param {Object} spec The `spec` hash which can be passed to 
-     * `createPostRequestor`.
-     * @returns {Function} The requestor.
-     */
-    postRequest(url, spec) {
-        return parsec.sequence([
-            (receiver, message) => 
-                createPostRequestor(url, spec)(receiver, { body: message }),
-            checkStatusCode()
-        ]);
-    }
+    getRequest,
+    postRequest
 });
