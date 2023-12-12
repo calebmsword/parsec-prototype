@@ -449,7 +449,9 @@ function createSpecificMethodRequestor(method) {
 
 /**
  * Creates a requestor for making GET requests.
- * @param {String} url The endpoint of the GET request.
+ * @param {String|Object} url If a string, then the endpoint of the GET request. 
+ * If you pass a `spec` object as the first argument, then the second parameter 
+ * is ignored.
  * @param {Object} spec See the documentation for the `spec` parameter in 
  * `createHttpsRequestor`. If you provide a method property in this spec, it is 
  * ignored.
@@ -460,7 +462,9 @@ export const createGetRequestor = createSpecificMethodRequestor("GET");
 
 /**
  * Creates a requestor for making POST requests.
- * @param {String} url The endpoint of the POST request.
+ * @param {String|Object} url If a string, then the endpoint of the GET request. 
+ * If you pass a `spec` object as the first argument, then the second parameter 
+ * is ignored.
  * @param {Object} spec See the documentation for the `spec` parameter in 
  * `createHttpsRequestor`. If you provide a method property in this spec, it is 
  * ignored.
@@ -471,7 +475,9 @@ export const createPostRequestor = createSpecificMethodRequestor("POST");
 
 /**
  * Creates a requestor for making PUT requests.
- * @param {String} url The endpoint of the PUT request.
+ * @param {String|Object} url If a string, then the endpoint of the GET request. 
+ * If you pass a `spec` object as the first argument, then the second parameter 
+ * is ignored.
  * @param {Object} spec See the documentation for the `spec` parameter in 
  * `createHttpsRequestor`. If you provide a method property in this spec, it is 
  * ignored.
@@ -482,7 +488,9 @@ export const createPutRequestor = createSpecificMethodRequestor("PUT");
 
 /**
  * Creates a requestor for making DELETE requests.
- * @param {String} url The endpoint of the DELETE request.
+ * @param {String|Object} url If a string, then the endpoint of the GET request. 
+ * If you pass a `spec` object as the first argument, then the second parameter 
+ * is ignored.
  * @param {Object} spec See the documentation for the `spec` parameter in 
  * `createHttpsRequestor`. If you provide a method property in this spec, it is 
  * ignored.
