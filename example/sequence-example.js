@@ -2,7 +2,7 @@ import parsec from "../src/index.js";
 import nebula from "./example-utils/nebula.js"
 import { exists } from "../src/lib/utils.js";
 
-const { usePromise, thru, getRequest, fork, fail, map, postRequest } = nebula;
+const { usePromise, thru, getRequest, branch, fail, map, postRequest } = nebula;
 
 
 // with parsec
@@ -12,7 +12,7 @@ parsec.sequence([
             .then(res => res.json())),
     thru(response => console.log(response[response.length - 1].name)),
     getRequest("https://api.sampleapis.com/coffee/hot"),
-    fork(
+    branch(
         response => response.statusCode === 404,
         fail("404!"),
         thru(response => console.log(`all good: ${response.statusCode}`))

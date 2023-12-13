@@ -36,7 +36,7 @@ function map(mapper) {
  * @param {Function} ifFalse Requestor that is used if condition is false.
  * @returns {Function}
  */
-function fork(condition, ifTrue, ifFalse) {
+function branch(condition, ifTrue, ifFalse) {
     return function forkRequestor(receiver, message) {
         try {
             const boolCandidate = condition(message);
@@ -206,7 +206,7 @@ function failConcisely(excuse) {
  */
 const nebula = Object.freeze({
     map,
-    fork,
+    branch,
     thru,
     httpsRequest,
     getRequest,

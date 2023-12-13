@@ -14,6 +14,48 @@ A requestor may take a second argument we call a *message*.
 
 Requestors may optionally return a function we call a **cancellor**. The cancellor should attempt to cancel the unit of work its requestor started, and may optionally take a *reason* argument for logging purposes. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
 
+```javascript
+function createGetRequestor(url) {
+    return function getRequestor(receiver) {
+        try {
+            const request = new XMLHttpRequest();
+
+            request.onreadystatechange = () => {
+                if (this.readyState !== 4) return;
+                const result = {
+                    value: {
+                        status: this.status,
+                        statusText: this.statusText,
+                        headers: this.getAllResponseHeaders(),
+                        data: this.responseText,
+                    }
+                }
+                receiver(result);
+            };
+
+            request.open("GET", url, true);
+            request.send();
+        }
+        catch(reason) {
+            receiver({ reason });
+        }
+    }
+}
+
+const getCoffees = createGetRequestor("https://api.sampleapis.com/coffee/hot");
+getCoffees((result) => {
+    if (result.value === undefined) {
+        console.log("Failure!");
+        if (result.reason !== undefined && result.reason !== null) {
+            console.log(reason);
+        }
+        return;
+    }
+
+    console.log("Success: response is: ", result.value.data);
+});
+```
+
 ### parsec and requestors
 Callback hell should be avoided at all costs. To avoid directly calling another requestor inside of a receiver, Parsec provides four requestor factories which can be used to compose requestors in a maintainable way:
 
