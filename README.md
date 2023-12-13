@@ -12,7 +12,7 @@ The result may have a `value` property which represents the result of that unit 
 
 A requestor may take a second argument we call a *message*.
 
-Requestors may optionally return a function we call a **cancellor**. The cancellor should attempt to cancel the unit of work its requestor started, and may optionally take a a *reason* argument for logging purposes. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
+Requestors may optionally return a function we call a **cancellor**. The cancellor should attempt to cancel the unit of work its requestor started, and may optionally take a *reason* argument for logging purposes. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
 
 ### parsec and requestors
 Callback hell should be avoided at all costs. To avoid directly calling another requestor inside of a receiver, Parsec provides four requestor factories which can be used to compose requestors in a maintainable way:
