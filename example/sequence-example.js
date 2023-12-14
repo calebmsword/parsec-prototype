@@ -9,7 +9,8 @@ const { usePromise, thru, branch, fail, map, ajaxGet, ajaxPost } = nebula;
 parsec.sequence([
     usePromise(
         fetch("https://api.sampleapis.com/switch/games")
-            .then(res => res.json())),
+            .then(res => res.json())
+    ),
     thru(response => console.log(response[response.length - 1].name)),
     ajaxGet("https://api.sampleapis.com/coffee/hot"),
     branch(
