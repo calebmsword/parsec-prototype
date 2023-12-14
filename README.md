@@ -22,23 +22,18 @@ function createGetRequestor(url) {
 
             request.onreadystatechange = () => {
                 if (request.readyState !== 4) return;
-                const result = {
+                receiver({
                     value: {
                         status: request.status,
                         statusText: request.statusText,
                         headers: request.getAllResponseHeaders(),
                         data: request.responseText,
                     }
-                }
-                receiver(result);
+                });
             };
 
             request.open("GET", url, true);
             request.send();
-
-            return function cancellor() {
-                request.abort();
-            }
         }
         catch(reason) {
             receiver({ reason });
@@ -47,12 +42,9 @@ function createGetRequestor(url) {
 }
 
 const getCoffees = createGetRequestor("https://api.sampleapis.com/coffee/hot");
-const cancelGetCoffee = getCoffees((result) => {
+getCoffees((result) => {
     if (result.value === undefined) {
-        console.log("Failure!");
-        if (result.reason !== undefined && result.reason !== null) {
-            console.log(reason);
-        }
+        console.log("Failure:", reason);
         return;
     }
 
