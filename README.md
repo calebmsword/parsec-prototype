@@ -16,7 +16,7 @@ Requestors may optionally return a function we call a **cancellor**. The cancell
 
 ```javascript
 function createGetRequestor(url) {
-    return function requestor(receiver) {
+    return (receiver) => {
         try {
             const request = new XMLHttpRequest();
 
