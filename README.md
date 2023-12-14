@@ -6,9 +6,9 @@ This library is based off the library "Parseq" by Douglas Crockford from his boo
 ### requestors 
 In Parsec, the building block of asynchronous logic is a kind of function we call a **requestor**. A requestor performs *one unit of work*. This unit of work can be synchronous or asynchronous.
 
-Requestors receive a callback that is called when the unit of work completes. We call these callbacks **receivers**. All receivers exactly one argument: a *result*. The result is an object. 
+Requestors receive a callback that is called when the unit of work completes. We call these callbacks **receivers**. All receivers take exactly one argument: a *result* object. 
 
-The result may have a `value` property which represents the result of that unit of work. If the unit of work resulted in failure, then the value is `undefined`. On failure, the response may optionally contain a `reason` property which can be used for logging purposes.
+The result may have a `value` property which represents the result of that unit of work. If the unit of work resulted in failure, then the value is `undefined`. On failure, the result may optionally contain a `reason` property which can be used for logging purposes.
 
 A requestor may take a second argument we call a *message*.
 
