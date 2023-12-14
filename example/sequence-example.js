@@ -2,7 +2,7 @@ import parsec from "../src/index.js";
 import nebula from "./example-utils/nebula.js"
 import { exists } from "../src/lib/utils.js";
 
-const { usePromise, thru, getRequest, branch, fail, map, postRequest } = nebula;
+const { usePromise, thru, branch, fail, map, ajaxGet, ajaxPost } = nebula;
 
 
 // with parsec
@@ -11,15 +11,20 @@ parsec.sequence([
         fetch("https://api.sampleapis.com/switch/games")
             .then(res => res.json())),
     thru(response => console.log(response[response.length - 1].name)),
-    getRequest("https://api.sampleapis.com/coffee/hot"),
+    ajaxGet("https://api.sampleapis.com/coffee/hot"),
     branch(
         response => response.statusCode === 404,
         fail("404!"),
         thru(response => console.log(`all good: ${response.statusCode}`))
     ),
     map(response => response.data[0]),
-    postRequest("https://reqres.in/api/users"),
-    map(response => response.data.createdAt)
+    ajaxPost("https://reqres.in/api/users"),
+    branch(
+        ({ statusCode }) => statusCode >= 400 && statusCode < 600,
+        fail("4xx or 5xx error code!"),
+        thru(response => console.log(`all good: ${response.statusCode}`))
+    ),
+    map(response => response.data)
 ])
 (({ value, reason }) => {
     if (exists(value)) return console.log("Success:", value);

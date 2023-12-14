@@ -1,4 +1,3 @@
-import parsec from "../../src/index.js";
 import {
     createHttpsRequestor,
     createGetRequestor,
@@ -6,6 +5,13 @@ import {
     createPutRequestor,
     createDeleteRequestor
 } from "./create-https-requestor.js";
+import {
+    createAjaxRequestor,
+    createAjaxGetRequestor,
+    createAjaxPostRequestor,
+    createAjaxPutRequestor,
+    createAjaxDeleteRequestor
+} from "./ajax-requestor.js"
 
 /**
  * Creates a requestor which maps the given message.
@@ -77,6 +83,20 @@ function thru(sideEffect) {
 }
 
 /**
+ * Creates a requestor which makes an HTTPS request using `https.request`.
+ * Whatever message is passed to this requestor is used as the body for the 
+ * POST request.
+ * @param {String} url The endpoint for the request.
+ * @param {Object} spec The `spec` hash which can be passed to 
+ * `createHttpsRequestor`.
+ * @returns {Function} The requestor.
+ */
+ function nodeRequest(url, spec) {
+    return (receiver, message) => 
+        createHttpsRequestor({ url, ...spec })(receiver, { body: message });
+}
+
+/**
  * Creates a requestor which makes an HTTP request.
  * Whatever message is passed to this requestor is used as the body for the 
  * POST request.
@@ -85,19 +105,45 @@ function thru(sideEffect) {
  * `createHttpsRequestor`.
  * @returns {Function} The requestor.
  */
- function httpsRequest(url, spec) {
+function ajax(url, spec) {
     return (receiver, message) => 
-        createHttpsRequestor({ url, ...spec })(receiver, { body: message });
+        createAjaxRequestor({ url, ...spec })(receiver, { body: message });
 }
 
 /**
+ * Creates a requestor which makes a GET request using `https.request`.
  * @param {String} url The endpoint for the request.
  * @param {Object} spec The `spec` hash which can be passed to 
  * `createGetRequestor`.
  * @returns {Function} The requestor.
  */
- function getRequest(url, spec) {
+ function nodeGet(url, spec) {
     return createGetRequestor(url, spec);
+}
+
+/**
+ * Creates a requestor that makes a GET request.
+ * @param {String} url The endpoint for the request.
+ * @param {Object} spec The `spec` hash which can be passed to 
+ * `createGetRequestor`.
+ * @returns {Function} The requestor.
+ */
+function ajaxGet(url, spec) {
+    return createAjaxGetRequestor(url, spec);
+}
+
+/**
+ * Creates a requestor which makes a POST request using `https.request`.
+ * Whatever message is passed to this requestor is used as the body for the 
+ * POST request.
+ * @param {String} url The endpoint for the request.
+ * @param {Object} spec The `spec` hash which can be passed to 
+ * `createPostRequestor`.
+ * @returns {Function} The requestor.
+ */
+function nodePost(url, spec) {
+    return (receiver, message) => 
+        createPostRequestor(url, spec)(receiver, { body: message });
 }
 
 /**
@@ -109,9 +155,23 @@ function thru(sideEffect) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
-function postRequest(url, spec) {
+function ajaxPost(url, spec) {
     return (receiver, message) => 
-        createPostRequestor(url, spec)(receiver, { body: message });
+        createAjaxPostRequestor(url, spec)(receiver, { body: message });
+}
+
+/**
+ * CCreates a requestor which makes a PUT request using `https.request`.
+ * Whatever message is passed to this requestor is used as the body for the 
+ * POST request.
+ * @param {String} url The endpoint for the request.
+ * @param {Object} spec The `spec` hash which can be passed to 
+ * `createPostRequestor`.
+ * @returns {Function} The requestor.
+ */
+ function nodePut(url, spec) {
+    return (receiver, message) => 
+        createPutRequestor(url, spec)(receiver, { body: message });
 }
 
 /**
@@ -123,9 +183,20 @@ function postRequest(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
- function putRequest(url, spec) {
+function ajaxPut(url, spec) {
     return (receiver, message) => 
-        createPutRequestor(url, spec)(receiver, { body: message });
+        createAjaxPutRequestor(url, spec)(receiver, { body: message });
+}
+
+/**
+ * Creates a requestor which makes a DELETE request using `https.request`.
+ * @param {String} url The endpoint for the request.
+ * @param {Object} spec The `spec` hash which can be passed to 
+ * `createPostRequestor`.
+ * @returns {Function} The requestor.
+ */
+ function nodeDelete(url, spec) { 
+    return createDeleteRequestor(url, spec);
 }
 
 /**
@@ -135,8 +206,8 @@ function postRequest(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
- function deleteRequest(url, spec) { 
-    return createDeleteRequestor(url, spec);
+function ajaxDelete(url, spec) { 
+    return createAjaxDeleteRequestor(url, spec);
 }
 
 /**
@@ -192,30 +263,24 @@ function fail(excuse, createEvidence) {
 }
 
 /**
- * Creates a failing requestor. 
- * The message passed to the requestor is not included in the reason object.
- * @param {String} excuse An error message to pass to the reason object.
- * @returns {Function} A requestor.
- */
-function failConcisely(excuse) {
-    return fail(excuse, () => {});
-}
-
-/**
  * A collection of useful requestor factories.
  */
 const nebula = Object.freeze({
     map,
     branch,
     thru,
-    httpsRequest,
-    getRequest,
-    postRequest,
-    putRequest,
-    deleteRequest,
+    nodeRequest,
+    nodeGet,
+    nodePost,
+    nodePut,
+    nodeDelete,
+    ajax,
+    ajaxGet,
+    ajaxPost,
+    ajaxPut,
+    ajaxDelete,
     usePromise,
-    fail,
-    failConcisely
+    fail
 });
 
 export default nebula;

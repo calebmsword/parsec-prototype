@@ -21,13 +21,13 @@ function createGetRequestor(url) {
             const request = new XMLHttpRequest();
 
             request.onreadystatechange = () => {
-                if (this.readyState !== 4) return;
+                if (request.readyState !== 4) return;
                 const result = {
                     value: {
-                        status: this.status,
-                        statusText: this.statusText,
-                        headers: this.getAllResponseHeaders(),
-                        data: this.responseText,
+                        status: request.status,
+                        statusText: request.statusText,
+                        headers: request.getAllResponseHeaders(),
+                        data: request.responseText,
                     }
                 }
                 receiver(result);
@@ -35,6 +35,10 @@ function createGetRequestor(url) {
 
             request.open("GET", url, true);
             request.send();
+
+            return function cancellor() {
+                request.abort();
+            }
         }
         catch(reason) {
             receiver({ reason });
@@ -43,7 +47,7 @@ function createGetRequestor(url) {
 }
 
 const getCoffees = createGetRequestor("https://api.sampleapis.com/coffee/hot");
-getCoffees((result) => {
+const cancelGetCoffee = getCoffees((result) => {
     if (result.value === undefined) {
         console.log("Failure!");
         if (result.reason !== undefined && result.reason !== null) {
@@ -52,7 +56,7 @@ getCoffees((result) => {
         return;
     }
 
-    console.log("Success: response is: ", result.value.data);
+    console.log("Success! Response is: ", result.value.data);
 });
 ```
 
