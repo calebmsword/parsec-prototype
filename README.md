@@ -6,22 +6,27 @@ This library is based off the library "Parseq" by Douglas Crockford from his boo
 ### requestors 
 In Parsec, the building block of asynchronous logic is a kind of function we call a **requestor**. A requestor performs *one unit of work*. This unit of work can be synchronous or asynchronous.
 
-Requestors receive a callback that is called when the unit of work completes. We call these callbacks **receivers**. All receivers exactly one argument: a *result*. The result is an object. 
+Requestors receive a callback that is called when the unit of work completes. We call these callbacks **receivers**. All receivers take exactly one argument: a *result* object. 
 
-The result may have a `value` property which represents the result of that unit of work. If the unit of work resulted in failure, then the value is `undefined`. On failure, the response may optionally contain a `reason` property which can be used for logging purposes.
+The result may have a `value` property which represents the result of that unit of work. If the unit of work resulted in failure, then the value is `undefined`. On failure, the result may optionally contain a `reason` property which can be used for logging purposes.
 
 A requestor may take a second argument we call a *message*.
 
 Requestors may optionally return a function we call a **cancellor**. The cancellor should attempt to cancel the unit of work its requestor started, and may optionally take a *reason* argument for logging purposes. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
 
 ```javascript
+// most of the time, you create factories which create your requestors
 function createGetRequestor(url) {
-    return function getRequestor(receiver) {
+
+    // this specific requestor does not take a message
+    return (receiver) => {
         try {
             const request = new XMLHttpRequest();
 
             request.onreadystatechange = () => {
                 if (request.readyState !== 4) return;
+
+                // send the response data to the receiver
                 receiver({
                     value: {
                         status: request.status,
@@ -34,21 +39,29 @@ function createGetRequestor(url) {
 
             request.open("GET", url, true);
             request.send();
+
+            // the requestor returns a cancellor which aborts the request
+            return () => request.abort();
         }
         catch(reason) {
+            // if anything goes wrong, we call the receiver in a failure state
+            // (notice that `result.value` is implicitly undefined)
             receiver({ reason });
         }
     }
 }
 
+// create a requestor
 const getCoffees = createGetRequestor("https://api.sampleapis.com/coffee/hot");
+
+// use the requestor
 getCoffees((result) => {
     if (result.value === undefined) {
         console.log("Failure:", reason);
         return;
     }
 
-    console.log("Success! Response is: ", result.value.data);
+    console.log("Success! Response is:\n", result.value.data);
 });
 ```
 
