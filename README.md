@@ -15,13 +15,18 @@ A requestor may take a second argument we call a *message*.
 Requestors may optionally return a function we call a **cancellor**. The cancellor should attempt to cancel the unit of work its requestor started, and may optionally take a *reason* argument for logging purposes. In general, cancellors cannot guarantee cancellation. They can only guarantee an attempt.
 
 ```javascript
+// most of the time, you create factories which create your requestors
 function createGetRequestor(url) {
+
+    // this specific requestor does not take a message
     return (receiver) => {
         try {
             const request = new XMLHttpRequest();
 
             request.onreadystatechange = () => {
                 if (request.readyState !== 4) return;
+
+                // send the response data to the receiver
                 receiver({
                     value: {
                         status: request.status,
@@ -34,21 +39,29 @@ function createGetRequestor(url) {
 
             request.open("GET", url, true);
             request.send();
+
+            // the requestor returns a cancellor which aborts the request
+            return () => request.abort();
         }
         catch(reason) {
+            // if anything goes wrong, we call the receiver in a failure state
+            // (notice that `result.value` is implicitly undefined)
             receiver({ reason });
         }
     }
 }
 
+// create a requestor
 const getCoffees = createGetRequestor("https://api.sampleapis.com/coffee/hot");
+
+// use the requestor
 getCoffees((result) => {
     if (result.value === undefined) {
         console.log("Failure:", reason);
         return;
     }
 
-    console.log("Success! Response is: ", result.value.data);
+    console.log("Success! Response is:\n", result.value.data);
 });
 ```
 
