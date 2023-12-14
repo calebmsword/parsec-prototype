@@ -269,6 +269,8 @@ const nebula = Object.freeze({
     map,
     branch,
     thru,
+    fail,
+    usePromise,
     nodeRequest,
     nodeGet,
     nodePost,
@@ -278,9 +280,7 @@ const nebula = Object.freeze({
     ajaxGet,
     ajaxPost,
     ajaxPut,
-    ajaxDelete,
-    usePromise,
-    fail
+    ajaxDelete
 });
 
 export default nebula;
