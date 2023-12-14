@@ -83,6 +83,58 @@ function thru(sideEffect) {
 }
 
 /**
+ * Creates requestor which fails.
+ * @param {String} excuse An error message to pass to the reason object.
+ * @param {Function} createEvidence By default, the reason object contains an 
+ * `evidence` property which contains the message sent to the requestor. But if 
+ * you provide a `createEvidence` function, its return value will be used as the 
+ * evidence instead. `createEvidence` is passed the message as an argument.
+ * @returns {Function} A requestor.
+ */
+function fail(excuse, createEvidence) {
+    return function requestor(receiver, message) {
+        if (typeof createEvidence === "function")
+            message = createEvidence(message);
+        receiver({ 
+            reason: Object.assign(
+                new Error(excuse),
+                ![null, undefined].includes(message) 
+                    ? { evidence: message } 
+                    : {}
+            )
+        });
+    }
+}
+
+/**
+ * Creates requestor which wraps a promise.
+ * When the promise resolves, the receiver is called with the resolved value. If 
+ * the promise rejects, the receiver result gets an undefined value and a reason 
+ * containing the rejected value.
+ * @param {Object} thenable A promise or thenable.
+ * @param {Object} options Allows you to make the requestor return a cancellor.
+ * @param {Boolean} options.cancellable Whether the requestor returns a 
+ * cancellor.
+ * @returns {Function} A requestor.
+ */
+function usePromise(thenable, { cancellable } = {}) {
+    let cancel;
+    const promise = new Promise((resolve, reject) => {
+        Promise.resolve(thenable)
+            .then(resolve)
+            .catch(reject)
+        if (cancellable === true) cancel = reject;
+    });
+
+    return function requestor(receiver) {
+        promise
+            .then(value => receiver({ value }))
+            .catch(reason => receiver({ reason }));
+        if (cancellable === true) return cancel;
+    }
+}
+
+/**
  * Creates a requestor which makes an HTTPS request using `https.request`.
  * Whatever message is passed to this requestor is used as the body for the 
  * POST request.
@@ -211,58 +263,6 @@ function ajaxDelete(url, spec) {
 }
 
 /**
- * Creates requestor which wraps a promise.
- * When the promise resolves, the receiver is called with the resolved value. If 
- * the promise rejects, the receiver result gets an undefined value and a reason 
- * containing the rejected value.
- * @param {Object} thenable A promise or thenable.
- * @param {Object} options Allows you to make the requestor return a cancellor.
- * @param {Boolean} options.cancellable Whether the requestor returns a 
- * cancellor.
- * @returns {Function} A requestor.
- */
-function usePromise(thenable, { cancellable } = {}) {
-    let cancel;
-    const promise = new Promise((resolve, reject) => {
-        Promise.resolve(thenable)
-            .then(resolve)
-            .catch(reject)
-        if (cancellable === true) cancel = reject;
-    });
-
-    return function requestor(receiver) {
-        promise
-            .then(value => receiver({ value }))
-            .catch(reason => receiver({ reason }));
-        if (cancellable === true) return cancel;
-    }
-}
-
-/**
- * Creates requestor which fails.
- * @param {String} excuse An error message to pass to the reason object.
- * @param {Function} createEvidence By default, the reason object contains an 
- * `evidence` property which contains the message sent to the requestor. But if 
- * you provide a `createEvidence` function, its return value will be used as the 
- * evidence instead. `createEvidence` is passed the message as an argument.
- * @returns {Function} A requestor.
- */
-function fail(excuse, createEvidence) {
-    return function requestor(receiver, message) {
-        if (typeof createEvidence === "function")
-            message = createEvidence(message);
-        receiver({ 
-            reason: Object.assign(
-                new Error(excuse),
-                ![null, undefined].includes(message) 
-                    ? { evidence: message } 
-                    : {}
-            )
-        });
-    }
-}
-
-/**
  * A collection of useful requestor factories.
  */
 const nebula = Object.freeze({
@@ -271,11 +271,13 @@ const nebula = Object.freeze({
     thru,
     fail,
     usePromise,
+
     nodeRequest,
     nodeGet,
     nodePost,
     nodePut,
     nodeDelete,
+    
     ajax,
     ajaxGet,
     ajaxPost,
