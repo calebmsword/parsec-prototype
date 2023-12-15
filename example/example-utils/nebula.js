@@ -43,13 +43,13 @@ function map(mapper) {
  * @returns {Function}
  */
 function branch(condition, ifTrue, ifFalse) {
-    return function forkRequestor(receiver, message) {
+    return function branch(receiver, message) {
         try {
             const boolCandidate = condition(message);
             if (typeof boolCandidate !== "boolean")
                 receiver({ 
                     reason: Object.assign(
-                        new Error("fork condition did not return a boolean!"),
+                        new Error("branch condition did not return a boolean!"),
                         { evidence: boolCandidate })
                 });
             return boolCandidate 
@@ -110,14 +110,43 @@ function fail(excuse, createEvidence) {
  * Creates requestor which wraps a promise.
  * When the promise resolves, the receiver is called with the resolved value. If 
  * the promise rejects, the receiver result gets an undefined value and a reason 
- * containing the rejected value.
+ * containing the rejected reason.
+ * 
+ * By default, the cancellor for this function simply forces the promise to 
+ * reject. If you would also like to send a request to a server (say, an attempt 
+ * to cancel an expensive calculation that was requested), then use can use 
+ * `spec.customCancel`. See the following example:
+ * 
+ * @example
+ * ```
+ * const getRequestor = usePromise(fetch(ENDPOINT), {
+ *     cancellable: true,
+ *     customCancel: (reject) => () => {
+ *         
+ *         // use whatever tools you have 
+ *         // to make a request to the 
+ *         // server to try to cancel the 
+ *         // expensive request
+ *         fetch(CANCEL_ENDPOINT);
+ *         
+ *         // force promise to reject
+ *         reject(); 
+ *     }
+ * }); 
+ * ```
+ * 
  * @param {Object} thenable A promise or thenable.
  * @param {Object} options Allows you to make the requestor return a cancellor.
  * @param {Boolean} options.cancellable Whether the requestor returns a 
  * cancellor.
+ * @param {Function} options.customCancel A function factory which takes a 
+ * `reject` method which forces the promise to reject and returns a cancellor. 
+ * If provided, the return value of this function will act as the cancellor for 
+ * this requestor. If the function you provide does not return a function, 
+ * then the default cancellor will be used.
  * @returns {Function} A requestor.
  */
-function usePromise(thenable, { cancellable } = {}) {
+function usePromise(thenable, { cancellable, customCancel } = {}) {
     let cancel;
     const promise = new Promise((resolve, reject) => {
         Promise.resolve(thenable)
@@ -126,11 +155,19 @@ function usePromise(thenable, { cancellable } = {}) {
         if (cancellable === true) cancel = reject;
     });
 
+    if (typeof customCancel !== "function")
+        customCancel = reject => reject();
+
     return function requestor(receiver) {
         promise
             .then(value => receiver({ value }))
             .catch(reason => receiver({ reason }));
-        if (cancellable === true) return cancel;
+        if (cancellable === true) {
+            const cancellorCandidate = customCancel(cancel);
+            if (typeof cancellorCandidate !== "function")
+                return cancel;
+            return cancellorCandidate;
+        }
     }
 }
 
@@ -180,7 +217,7 @@ function ajax(url, spec) {
  * `createGetRequestor`.
  * @returns {Function} The requestor.
  */
-function ajaxGet(url, spec) {
+function GET(url, spec) {
     return createAjaxGetRequestor(url, spec);
 }
 
@@ -207,7 +244,7 @@ function nodePost(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
-function ajaxPost(url, spec) {
+function POST(url, spec) {
     return (receiver, message) => 
         createAjaxPostRequestor(url, spec)(receiver, { body: message });
 }
@@ -235,7 +272,7 @@ function ajaxPost(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
-function ajaxPut(url, spec) {
+function PUT(url, spec) {
     return (receiver, message) => 
         createAjaxPutRequestor(url, spec)(receiver, { body: message });
 }
@@ -258,7 +295,7 @@ function ajaxPut(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
-function ajaxDelete(url, spec) { 
+function DELETE(url, spec) { 
     return createAjaxDeleteRequestor(url, spec);
 }
 
@@ -279,10 +316,10 @@ const nebula = Object.freeze({
     nodeDelete,
     
     ajax,
-    ajaxGet,
-    ajaxPost,
-    ajaxPut,
-    ajaxDelete
+    GET,
+    POST,
+    PUT,
+    DELETE
 });
 
 export default nebula;

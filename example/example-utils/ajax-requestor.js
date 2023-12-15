@@ -402,7 +402,6 @@ export function createAjaxRequestor(spec) {
             receiver(result);
             receiver = undefined;
         }
-
         
         try {
             // requestor can append URL

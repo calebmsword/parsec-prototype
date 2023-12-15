@@ -3,24 +3,27 @@ import http from "node:http";
 import https from "node:https"
 
 /**
- * An incomplete mock of the XMLHttpRequest object.
+ * An incomplete mock of XMLHttpRequest.
  * 
- * With this, we can use XMLHttpRequest in JavaScript that is run in Node or a 
- * browser:
+ * With this, we can use XMLHttpRequest in Node in (most of) the same ways it 
+ * can be used in the browser:
  * 
  * @example
  * ```
  * if (typeof globalThis.XMLHttpRequest !== "function")
  *     globalThis.XMLHttpRequest = MockXMLHttpRequest;
  * 
- * // this will work in Node or a browser
+ * // this will work like it does in the browser
  * const request = new XMLHttpRequest();
  * ```
  * 
- * This class wraps usage of Node's `http.request` or `https.request` API.
+ * This class wraps usage of Node's `http.request` or `https.request` API (or 
+ * the `fs` module, if you use XMLHttpRequest to grab a local file).
  * 
- * There are many features in XMLHttpRequest that are missing or incorrect. Let 
- * "request" represent an XMLHttpRequest instance:
+ * This mock was created to emulate the subset of the XMLHttpRequest API that 
+ * nebula uses and it should not be used for any other purpose. There are many 
+ * features in the browser specification for XMLHttpRequest that are missing or 
+ * incorrect. Let "request" represent an XMLHttpRequest instance:
  *  - request.responseXML is never turned into a Document object. It is always 
  * null.
  *  - request.overrideMimeType() is not implemented.
@@ -33,13 +36,15 @@ import https from "node:https"
  * extremely insecure interactions between JSON.parse and child processes.)
  *  - Local file access encodes all files as UTF-8.
  * 
- * This mock was created to emulate the subset of the XMLHttpRequest API that 
- * nebula uses. This mock should not be used for any other purpose.
- * 
  * This mock is nearly an exact copy of that from 
  * https://github.com/driverdan/node-XMLHttpRequest. The differences from the 
- * original implementation remove deprecated method calls and uses modern ES6 
- * syntax. The original repo uses the MIT license, so this is fine.
+ * original implementation remove deprecated method calls, uses modern ES6 
+ * syntax, and excludes the extremely insecure implementation of synchronous 
+ * http.request calls. The original repo uses the MIT license, so this is fine.
+ * 
+ * I also consulted 
+ * https://developer.mozilla.org/en-US/docs/Web/API/XMLHttpRequest for much of 
+ * the documentation for this class.
  */
 class MockXMLHttpRequest {
 
@@ -298,7 +303,7 @@ class MockXMLHttpRequest {
     }
 
     /**
-     * Sets a header for the request, or appends the value if one already set.
+     * Sets a header for the request, or appends the value if already set.
      * @param {String} header Header name
      * @param {String} value Header value
      */
