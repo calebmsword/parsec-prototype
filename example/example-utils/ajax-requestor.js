@@ -1,7 +1,137 @@
-import { MockXMLHttpRequest } from "./mock-xmlhttprequest.js";
+import MockXMLHttpRequest from "./mock-xmlhttprequest-2.js";
 
 if (typeof globalThis.XMLHttpRequest !== "function")
     globalThis.XMLHttpRequest = MockXMLHttpRequest;
+
+/**
+ * Gets the status message corresponding to the provided statusCode.
+ * If the statusCode is unrecognized or not a number, then `null` is returned.
+ * @param {Number} statusCode 
+ * @returns {String|Null}
+ */
+function getStatusMessage(statusCode) {
+    if (typeof statusCode !== "number") return null;
+    switch (statusCode) {
+        case 100:
+            return "Continue";
+        case 101:
+            return "Switching Protocols";
+        case 102:
+            return "Processing";
+        case 103:
+            return "Early Hints";
+        case 200:
+            return "OK";
+        case 201:
+            return "Created";
+        case 202:
+            return "Accepted";
+        case 203:
+            return "Non-Authoritative Information";
+        case 204:
+            return "No Content";
+        case 205:
+            return "Reset Content";
+        case 206:
+            return "Partial Content";
+        case 207:
+            return "Multi-Status";
+        case 208:
+            return "Already Reported";
+        case 226:
+            return "IM Used"
+        case 300:
+            return "Multiple Choices";
+        case 301:
+            return "Moved Permanently";
+        case 302:
+            return "Found";
+        case 303:
+            return "Not Modified";
+        case 307:
+            return "Temporary Redirect";
+        case 308:
+            return "Permanent Redirect";
+        case 400:
+            return "Bad Request";
+        case 401:
+            return "Unauthorized";
+        case 403:
+            return "Forbidden";
+        case 404:
+            return "Not Found";
+        case 405:
+            return "Method Not Allowed";
+        case 406:
+            return "Not Acceptable";
+        case 407:
+            return "Proxy Authentication Required";
+        case 408:
+            return "Request Timeout";
+        case 409:
+            return "Conflict";
+        case 410:
+            return "Gone";
+        case 411:
+            return "Length Required";
+        case 412:
+            return "Precondition Failed";
+        case 413:
+            return "Payload Too Large";
+        case 414:
+            return "URI Too Long";
+        case 415:
+            return "Unsupported Media Type";
+        case 416:
+            return "Range Not Satisfiable";
+        case 417:
+            return "Expectation Failed";
+        case 418:
+            return "I'm a teapot"
+        case 421:
+            return "Misdirected Request";
+        case 422:
+            return "Unprocessale Content";
+        case 423:
+            return "Locked";
+        case 424:
+            return "Failed Dependency";
+        case 426:
+            return "Upgrade Required";
+        case 428:
+            return "Precondition Required";
+        case 429:
+            return "Too Many Requests";
+        case 431:
+            return "Request Header Fields Too Large";
+        case 451:
+            return "Unavailable For Legal Reasons";
+        case 500:
+            return "Internal Server Error";
+        case 501:
+            return "Not Implemented";
+        case 502:
+            return "Bad Gateway";
+        case 503:
+            return "Service Unavailable";
+        case 504:
+            return "Gateway Timeout";
+        case 505:
+            return "HTTP Version Not Supported";
+        case 506:
+            return "Variant Also Negotiates";
+        case 507:
+            return "Insufficient Storage";
+        case 508:
+            return "Loop Detected";
+        case 510:
+            return "Not Extended";
+        case 511:
+            return "Network Authentication Required";
+        default:
+            return null;
+    }
+}
 
 /**
  * A requestor factory. Creates requestors that make one HTTP request.
@@ -10,7 +140,7 @@ if (typeof globalThis.XMLHttpRequest !== "function")
  * 
  * @example
  * ```
- * const doPostRequest = createHttpsRequestor({
+ * const doPostRequest = createAjaxRequestor({
  *   url: "endpoint/of/request",
  *   method: "POST",  // or "GET", "PUT", etc...
  *   headers: {
@@ -42,11 +172,71 @@ if (typeof globalThis.XMLHttpRequest !== "function")
  * specify a `contentType` of "x-www-form-urlencoded", or provide a header which 
  * specifies that content-type, then the request body will be automatically 
  * stringified into a URL query parameter string. You can disable this automatic
- * parsing if you would like, in which case you will need to provide a string to 
- * the request body instead of an object.
+ * parsing if you would like by setting `spec.autoParseRequest` to `false`. If 
+ * you do this, you will need to provide a string to the request body instead of 
+ * an object.
  * 
  * If the response data is sent as JSON, it is automatically parsed into an 
- * object. This behavior can be disabled.
+ * object. This behavior can be disabled by setting `spec.autoParseResponse` to 
+ * `false`.
+ * 
+ * The cancellor for the requestor, by default, uses the `abort` method from 
+ * the XMLHttpRequest API. This means that the default cancellor will let the 
+ * server process your request, and whatever response is sent will simply be 
+ * ignored. If you would like more control over how the cancellor behaves, then 
+ * use `spec.customCancel`. See the following example. 
+ * 
+ * @example
+ * ```
+ * const getExpensiveRequest = createAjaxRequestor({
+ *     url: "endpoint/of/request",
+ *     
+ *     // customCancel must be a function factory
+ *     customCancel: (abortRequest, tryReceiver) => () => {
+ *         
+ *         // Suppose our server was designed such 
+ *         // that this particular expensive request 
+ *         // can be cancelled if another specific 
+ *         // request is made before the server 
+ *         // responds to the expensive request
+ *         createAjaxRequestor({ 
+ *             url: "endpoint/to/request/cancel" 
+ *         })(() => {
+ *             // no-op
+ *         });
+ *         
+ *         // abortRequest simply calls 
+ *         // XMLHttpRequest.abort.
+ *         // If server sends response before the
+ *         // cancel request is received, calling 
+ *         // this function will still lead us to 
+ *         // ignore the response.
+ *         // The receiver will NOT be called if you 
+ *         // execute abortRequest!!!
+ *         abortRequest();
+ *         
+ *         // You don't have to call abortRequest(), 
+ *         // for example, if you expect to receive 
+ *         // some sort of response from the server 
+ *         // if the cancel is sent in time.
+ * 
+ *         // You have access to the receiver for 
+ *         // the requestor. Use this is you would  
+ *         // like to call the receiver even if 
+ *         // abortRequest is called.
+ *         // If the receiver is already called by the 
+ *         // time cancel is run, then this function 
+ *         // will no-op
+ *         tryReceiver({ reason: "cancelled!" });
+ *         
+ *         // If you call tryReceiver but don't call
+ *         // abortRequest, then the receiver will 
+ *         // never be called again, even if a 
+ *         // the expensive request receives a 
+ *         // response. 
+ *     }
+ * });
+ * ```
  * 
  * @param {Object} spec Configures the returned requestor.
  * @param {String} spec.url The endpoint of the request. This can include 
@@ -75,7 +265,7 @@ if (typeof globalThis.XMLHttpRequest !== "function")
  * automatically parsed. You must provide strings instead of objects as the 
  * request body.
  * @param {Boolean} spec.autoParseResponse If false, responses will be sent to 
- * the reciever as strings instead of objects. The receiver must manually parse 
+ * the receiver as strings instead of objects. The receiver must manually parse 
  * the response.
  * @param {Function} spec.log Any errors will be sent to this function if it is 
  * provided. This should be used for logging purposes. Currently, only errors 
@@ -103,11 +293,6 @@ if (typeof globalThis.XMLHttpRequest !== "function")
  * 
  * The value sent to the receiver is a hash with four properties: `statusCode`, 
  * `statusMessage`, `headers`, and `data`.
- * 
- * The cancellor for the requestor, by default, uses the `abort` method from 
- * the XMLHttpRequest API. This means that the default cancellor will let the 
- * server process your request, and whatever response is sent will simply be 
- * ignored.
  */
 export function createAjaxRequestor(spec) {
 
@@ -157,8 +342,9 @@ export function createAjaxRequestor(spec) {
     }
 
     return function ajaxRequestor(receiver, message) {
-        // requestor can override body, contentType, or customCancel
+        if (typeof message !== "object") message = {};
 
+        // requestor can override body, contentType, or customCancel
         body = typeof message.body === "object" ? message.body : body;
         contentType = ![null, undefined].includes(message.contentType) 
                       ? message.contentType 
@@ -211,6 +397,13 @@ export function createAjaxRequestor(spec) {
                 console.log("Could not autoparse response:\n", error);
             }
         
+        function tryReceiver(result) {
+            if (typeof receiver !== "function") return;
+            receiver(result);
+            receiver = undefined;
+        }
+
+        
         try {
             // requestor can append URL
             if (
@@ -226,27 +419,33 @@ export function createAjaxRequestor(spec) {
                             .toString()
                     }`;
             
-            // If headers didn't override `contentType`, apply `contentType`
-            if (![null, undefined, __other__].includes(contentType))
-                headers["Content-Type"] = ContentType[contentType];
-            
             // Automatically parse request
             if (typeof body === "object" && autoParseRequest !== false)
                 body = Stringify[contentType](body)
             
+            // XMLHttpRequest isn't allowed to assign content-type, toss it
+            Object.keys(headers).forEach(header => {
+                if (header.toLowerCase() === "content-type")
+                    delete headers[header];
+            });
+            
             const request = new XMLHttpRequest();
             
             request.onreadystatechange = function onReadyStateChange() {
-                if (request.readyState !== 4) return;
+                if (request.readyState !== XMLHttpRequest.DONE) return;
 
                 const value = Object.create(null);
                 value.statusCode = request.status;
-                value.statusMessage = request.statusText;
-                
+                value.statusMessage = request.statusText === "" 
+                                      ? getStatusMessage(request.status)
+                                      : request.statusText;
+
                 value.headers = Object.create(null);
-                request.getAllResponseHeaders().split("\n").forEach(line => {
+                request.getAllResponseHeaders().split("\r\n").forEach(line => {
                     if (line === "") return;
-                    const [header, headerValue] = line.split(":");
+                    const [header, headerValue] = line
+                        .split(":")
+                        .map(s => s.trim());
                     value.headers[header] = headerValue;
                 });
 
@@ -273,7 +472,7 @@ export function createAjaxRequestor(spec) {
                     value.data = request.responseText;
                 }
 
-                receiver({ value });
+                tryReceiver({ value });
             }
 
             request.open(method, url, true);
@@ -285,12 +484,12 @@ export function createAjaxRequestor(spec) {
             request.send(typeof body === "string" ? body : undefined);
 
             if (typeof customCancel === "function")
-                return customCancel(request.abort);
+                return customCancel(request.abort, tryReceiver);
             
             return () => request.abort;
         }
         catch(reason) {
-            receiver({ reason });
+            tryReceiver({ reason });
         }
     }
 }
