@@ -230,7 +230,7 @@ function cloneInternalNoRecursion(_value, customizer) {
                             parentOrAssigner: (cloned, metadata) => {
                                 if (["object", "function"]
                                     .every(type => typeof cloned !== type)) {
-                                        map.set(key, cloned);
+                                        set.add(cloned);
                                         return;
                                 }
 
