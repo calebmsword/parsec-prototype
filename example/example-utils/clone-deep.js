@@ -32,7 +32,7 @@ function cloneInternalNoRecursion(_value, customizer) {
         if (parentOrAssigner === undefined) 
             result = cloned;
         else if (typeof parentOrAssigner === "function") 
-            parentOrAssigner(cloned);
+            parentOrAssigner(cloned, metadata);
         else if (typeof metadata === "object") {
             const hasAccessor = ["get", "set"].some(key => 
                 typeof metadata[key] === "function");
@@ -61,8 +61,8 @@ function cloneInternalNoRecursion(_value, customizer) {
         //                   assigning the cloned value to something
         // `prop` is used with `parentOrAssigner` if it is an object so that the 
         // cloned object will be assigned to `parentOrAssigner[prop]`.
-        // `metadata` is the property descriptor for the value. This is 
-        // optional.
+        // `metadata` contains the property descriptor(s) for the value. It may 
+        // be undefined.
         const { value, parentOrAssigner, prop, metadata } = popped;
         
         // Will contain the cloned object.
@@ -122,9 +122,9 @@ function cloneInternalNoRecursion(_value, customizer) {
         
         else if (Array.isArray(value))
             cloned = assign(new Array(value.length), 
-                                      parentOrAssigner, 
-                                      prop, 
-                                      metadata);
+                            parentOrAssigner, 
+                            prop, 
+                            metadata);
 
         // Ordinary objects, or the rare `arguments` clone
         else if (["[object Object]", "[object Arguments]"]
@@ -136,9 +136,9 @@ function cloneInternalNoRecursion(_value, customizer) {
                             metadata);
         
         else {
-            try {
-                const Value = value.constructor;
+            const Value = value.constructor;
 
+            try {
                 // Booleans, Number, String or Symbols which used `new` syntax 
                 // so JavaScript thinks they are objects
                 // We also handle Date here because it is convenient
@@ -203,9 +203,20 @@ function cloneInternalNoRecursion(_value, customizer) {
                     value.forEach((subValue, key) => {
                         stack.push({ 
                             value: subValue, 
-                            parentOrAssigner: cloned => {
-                                map.set(key, cloned);
-                            } 
+                            parentOrAssigner: (cloned, metadata) => {
+                                if (["object", "function"]
+                                    .every(type => typeof cloned !== type)) {
+                                        map.set(key, cloned);
+                                        return;
+                                }
+
+                                map.set(key, Object.defineProperties(
+                                    cloned, metadata || {}));
+                            },
+                            metadata: [null, undefined].includes(subValue)
+                                      ? {}
+                                      : Object.getOwnPropertyDescriptors(
+                                        subValue)
                         });
                     });
                 }
@@ -216,9 +227,20 @@ function cloneInternalNoRecursion(_value, customizer) {
                     value.forEach(subValue => {
                         stack.push({ 
                             value: subValue, 
-                            parentOrAssigner: cloned => {
-                                set.add(cloned);
-                            }
+                            parentOrAssigner: (cloned, metadata) => {
+                                if (["object", "function"]
+                                    .every(type => typeof cloned !== type)) {
+                                        map.set(key, cloned);
+                                        return;
+                                }
+
+                                set.add(Object.defineProperties(cloned, 
+                                                                metadata));
+                            },
+                            metadata: [null, undefined].includes(subValue)
+                                      ? {}
+                                      : Object.getOwnPropertyDescriptors(
+                                        subValue)
                         });
                     });
                 }
