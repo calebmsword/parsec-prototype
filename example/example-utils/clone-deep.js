@@ -113,7 +113,7 @@ function cloneInternalNoRecursion(_value, customizer) {
         }
 
         // If value is a Node Buffer, just use Buffer's subarray method.
-        else if (global
+        else if (typeof global === "object"
                  && global.Buffer
                  && typeof Buffer === "function"
                  && typeof Buffer.isBuffer === "function"
