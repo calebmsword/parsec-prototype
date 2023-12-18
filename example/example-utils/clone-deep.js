@@ -1,9 +1,10 @@
 /**
  * Deeply clones the provided value.
  * @param {any} _value The value to clone deeply.
+ * @param {Function} customizer If provided, performs user-injected logic.
  * @returns {any} The deep clone.
  */
-function cloneInternalNoRecursion(_value) {
+function cloneInternalNoRecursion(_value, customizer) {
     
     let result;
 
@@ -64,6 +65,15 @@ function cloneInternalNoRecursion(_value) {
         }
 
         const isFunc = typeof value === "function";
+
+        // Perform user-injected logic if applicable.
+        if (typeof customizer === "function") {
+            const customResult = customizer(value, parentOrAssigner, prop);
+            if (customResult !== undefined) {
+                hash.set(value, customResult);
+                continue;
+            }
+        }
 
         // We won't clone errors, weakmaps or weaksets.
         if ([Error, WeakMap, WeakSet].some(cls => value instanceof cls)) {
@@ -222,11 +232,18 @@ function cloneInternalNoRecursion(_value) {
  * `Object.setPrototypeOf`, or use a custom `Symbol.toStringTag` property, it is 
  * impossible to guarantee that the data will be cloned correctly.
  * 
+ * Warning: any class which overrides `Symbol.toStringTag` so that it returns 
+ * "Object" or "Argument" may have unexpected behavior when cloned.
+ * 
  * @param {any} value The value to deeply copy.
+ * @param {Function} customizer Allows the user to inject custom logic. The 
+ * function provided is given three arguments: `value`, `parentOrAssigner`, and 
+ * `prop`. If the function returns any value that is not undefined, then that 
+ * value is used as the cloned result.
  * @returns {Object} The deep copy.
  */
-function clone(value) {
-    return cloneInternalNoRecursion(value);
+function clone(value, customizer) {
+    return cloneInternalNoRecursion(value, customizer);
 }
 
 export default clone;
