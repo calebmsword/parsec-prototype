@@ -32,14 +32,13 @@ function cloneInternalNoRecursion(_value, customizer) {
         if (parentOrAssigner === undefined) 
             result = cloned;
         else if (typeof parentOrAssigner === "function") 
-            parentOrAssigner(cloned, metadata);
+            parentOrAssigner(cloned, prop, metadata);
         else if (typeof metadata === "object") {
             const hasAccessor = ["get", "set"].some(key => 
                 typeof metadata[key] === "function");
-            if (hasAccessor) {
-                delete metadata.value;
-                delete metadata.writable;
-            }
+            
+            delete metadata.value;
+            if (hasAccessor) delete metadata.writable;
 
             Object.defineProperty(parentOrAssigner, prop, Object.assign(
                 hasAccessor ? {} : { value: cloned },
@@ -203,20 +202,9 @@ function cloneInternalNoRecursion(_value, customizer) {
                     value.forEach((subValue, key) => {
                         stack.push({ 
                             value: subValue, 
-                            parentOrAssigner: (cloned, metadata) => {
-                                if (["object", "function"]
-                                    .every(type => typeof cloned !== type)) {
-                                        map.set(key, cloned);
-                                        return;
-                                }
-
-                                map.set(key, Object.defineProperties(
-                                    cloned, metadata || {}));
-                            },
-                            metadata: [null, undefined].includes(subValue)
-                                      ? {}
-                                      : Object.getOwnPropertyDescriptors(
-                                        subValue)
+                            parentOrAssigner: cloned => {
+                                map.set(key, cloned)
+                            }
                         });
                     });
                 }
@@ -227,20 +215,9 @@ function cloneInternalNoRecursion(_value, customizer) {
                     value.forEach(subValue => {
                         stack.push({ 
                             value: subValue, 
-                            parentOrAssigner: (cloned, metadata) => {
-                                if (["object", "function"]
-                                    .every(type => typeof cloned !== type)) {
-                                        set.add(cloned);
-                                        return;
-                                }
-
-                                set.add(Object.defineProperties(cloned, 
-                                                                metadata));
-                            },
-                            metadata: [null, undefined].includes(subValue)
-                                      ? {}
-                                      : Object.getOwnPropertyDescriptors(
-                                        subValue)
+                            parentOrAssigner: cloned => {
+                                map.set(key, cloned)
+                            }
                         });
                     });
                 }
