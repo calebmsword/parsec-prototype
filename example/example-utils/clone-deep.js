@@ -187,7 +187,7 @@ function cloneInternalNoRecursion(_value, customizer) {
                         || value instanceof Uint8ClampedArray
                         || value instanceof Uint16Array
                         || value instanceof Uint32Array) {
-                    const buffer = value.buffer.constructor(
+                    const buffer = new value.buffer.constructor(
                         value.buffer.byteLength);
                     new Uint8Array(buffer).set(new Uint8Array(value.buffer));
                     cloned = assign(
