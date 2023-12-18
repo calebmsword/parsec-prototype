@@ -18,26 +18,26 @@ parsec.sequence([
 });
 
 // more complex example using branch to check response status
-// parsec.sequence([
-//     ajaxGet("https://api.sampleapis.com/coffee/hot"),
-//     branch(
-//         response => response.statusCode === 404,
-//         fail("404!"),
-//         thru(response => console.log(`all good: ${response.statusMessage}`))
-//     ),
-//     map(response => response.data[0]),
-//     ajaxPost("https://reqres.in/api/users"),
-//     branch(
-//         ({ statusCode }) => statusCode >= 400 && statusCode < 600,
-//         fail("4xx or 5xx error code!"),
-//         thru(response => console.log(`all good: ${response.statusMessage}`))
-//     ),
-//     map(response => response.data)
-// ])
-// (({ value, reason }) => {
-//     if (exists(value)) return console.log("Success:", value);
-//     console.log("Failure because", reason);
-// });
+parsec.sequence([
+    ajaxGet("https://api.sampleapis.com/coffee/hot"),
+    branch(
+        response => response.statusCode === 404,
+        fail("404!"),
+        thru(response => console.log(`all good: ${response.statusMessage}`))
+    ),
+    map(response => response.data[0]),
+    ajaxPost("https://reqres.in/api/users"),
+    branch(
+        ({ statusCode }) => statusCode >= 400 && statusCode < 600,
+        fail("4xx or 5xx error code!"),
+        thru(response => console.log(`all good: ${response.statusMessage}`))
+    ),
+    map(response => response.data)
+])
+(({ value, reason }) => {
+    if (exists(value)) return console.log("Success:", value);
+    console.log("Failure because", reason);
+});
 
 // with async-await
 // (async () => {
