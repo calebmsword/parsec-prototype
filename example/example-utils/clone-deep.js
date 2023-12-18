@@ -10,7 +10,7 @@ function cloneInternalNoRecursion(_value, customizer) {
 
     // Will be used to store cloned values so that we don't loop infinitely on 
     // circular references.
-    const hash = new Map();
+    const cloneStore = new Map();
 
     // A stack so we can avoid recursion.
     const stack = [{ value: _value }];
@@ -37,10 +37,14 @@ function cloneInternalNoRecursion(_value, customizer) {
             const hasAccessor = ["get", "set"].some(key => 
                 typeof metadata[key] === "function");
             
+            // `cloned` or getAccessor will determine the value
             delete metadata.value;
+
+            // defineProperty throws if property with accessors is writeable
             if (hasAccessor) delete metadata.writable;
 
             Object.defineProperty(parentOrAssigner, prop, Object.assign(
+                // defineProperty throws if value and set/get accessor coexist
                 hasAccessor ? {} : { value: cloned },
                 metadata,
             ));
@@ -74,13 +78,11 @@ function cloneInternalNoRecursion(_value, customizer) {
         }
 
         // Check for circular references.
-        const seen = hash.get(value);
+        const seen = cloneStore.get(value);
         if (seen !== undefined) {
             assign(seen, parentOrAssigner, prop, metadata);
             continue;
         }
-
-        const isFunc = typeof value === "function";
 
         // Perform user-injected logic if applicable.
         if (typeof customizer === "function") {
@@ -88,20 +90,17 @@ function cloneInternalNoRecursion(_value, customizer) {
                                             parentOrAssigner, 
                                             prop, 
                                             metadata);
-            if (customResult !== undefined) {
-                hash.set(value, customResult);
-                continue;
-            }
+            if (customResult !== undefined) cloned = customResult;
         }
 
         // We won't clone weakmaps or weaksets.
-        if ([WeakMap, WeakSet].some(cls => value instanceof cls)) {
+        else if ([WeakMap, WeakSet].some(cls => value instanceof cls)) {
             assign({}, parentOrAssigner, prop, metadata);
             continue;
         }
 
         // We only copy functions if they are methods.
-        else if (isFunc) {
+        else if (typeof value === "function") {
             assign(parentOrAssigner !== undefined 
                        ? value 
                        : {}, 
@@ -240,8 +239,8 @@ function cloneInternalNoRecursion(_value, customizer) {
                 assign({}, parentOrAssigner, prop, metadata);
             }
         }
-
-        hash.set(value, cloned);
+        
+        cloneStore.set(value, cloned);
 
         // Now copy all enumerable and non-enumerable properties.
         [Object.getOwnPropertyNames(value), Object.getOwnPropertySymbols(value)]
