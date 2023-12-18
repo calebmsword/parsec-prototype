@@ -77,3 +77,12 @@ Each factory takes an array of requestors and returns a new requestor, meaning t
 
 ### why should I use parsec?
 Using Parsec and requestors, we have clear separation of logic and control flow for asynchronous code. This is something that Promises and async-await fail to do. Simple features like throttling the number of concurrent requests to a server or cancelling a remote request, things which are inconvenient with Promises or async-await, are trivial with Parsec. Finally, the library is small and has no dependencies.
+
+### acknowledgements
+ - Thanks to Douglas Crockford for freely sharing the parseq source code.
+ - Thanks to GitHub users jamesdiancono and bunglegrind whose discussions in the parseq discussion forums inspired some of nebula.
+ - Thanks to GitHub user driverdan for creating the node-XMLHttpRequest package, 
+ which effectively prototyped the MockXMLHttpRequest class used in the nebula 
+ prototype.
+ - Thanks to the contributors to Lodash, whose `deepClone` method inspired the `clone` method used in the nebula prototype.
+ - Thanks to aescling and redoral for comments and suggestions on parsec and nebula.

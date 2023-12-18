@@ -7,27 +7,30 @@ function cloneInternalNoRecursion(_value) {
     
     let result;
 
+    // Will be used to store cloned values so that we don't loop infinitely on 
+    // circular references.
     const hash = new Map();
 
+    // A stack so we can avoid recursion.
     const stack = [{ value: _value }];
 
     /**
-     * 
+     * Handles the assignment of the cloned value to some persistent place.
      * @param {any} cloned The cloned value.
      * @param {Object|Function|Undefined} parentOrAssigner Either the parent 
      * object that the cloned value will be assigned to, or a function which 
      * assigns the value itself. If `undefined`, then the value returned by 
      * the outer function will be assigned the cloned value. 
      * @param {String|Symbol} prop If `parentOrAssigner` is a parent object, 
-     * then `prop` is the property that will be assigned `cloned`.
-     * @returns 
+     * then `parentOrAssigner[prop]` will be assigned `cloned`.
+     * @returns The cloned value.
      */
     function assign(cloned, parentOrAssigner, prop) {
         if (parentOrAssigner === undefined) 
             result = cloned;
         else if (typeof parentOrAssigner === "function") 
             parentOrAssigner(cloned);
-        else if (prop !== undefined) 
+        else 
             parentOrAssigner[prop] = cloned;
         return cloned;
     }
@@ -40,12 +43,12 @@ function cloneInternalNoRecursion(_value) {
         //     - object    - a parent object this value is nested under
         //     - function  - an "assigner" that has the responsiblity of 
         //                   assigning the cloned value to something
-        // `prop` is used with `parentOrAssigner` if it is an object--the cloned 
-        // object will be assigned to `parentOrAssigner[prop]`. 
+        // `prop` is used with `parentOrAssigner` if it is an object so that the 
+        // cloned object will be assigned to `parentOrAssigner[prop]`. 
         const { value, parentOrAssigner, prop } = popped;
         
-        // This may reference the cloned object.
-        let current;
+        // Will contain the cloned object.
+        let cloned;
 
         // If value is primitive, just assign it directly.
         if (value === null || !["object", "function"].includes(typeof value)) {
@@ -62,7 +65,7 @@ function cloneInternalNoRecursion(_value) {
 
         const isFunc = typeof value === "function";
 
-        // We won't clone errors, weakmaps or weaksets..
+        // We won't clone errors, weakmaps or weaksets.
         if ([Error, WeakMap, WeakSet].some(cls => value instanceof cls)) {
             assign({}, parentOrAssigner, prop);
             continue;
@@ -84,18 +87,18 @@ function cloneInternalNoRecursion(_value) {
                  && typeof Buffer === "function"
                  && typeof Buffer.isBuffer === "function"
                  && Buffer.isBuffer(value))
-            current = assign(value.subarray(), parentOrAssigner, prop);
+            cloned = assign(value.subarray(), parentOrAssigner, prop);
         
         else if (Array.isArray(value))
-            current = assign(new Array(value.length), parentOrAssigner, prop);
+            cloned = assign(new Array(value.length), parentOrAssigner, prop);
 
         // Ordinary objects, or the rare `arguments` clone
         else if (["[object Object]", "[object Arguments]"]
                     .includes(Object.prototype.toString.call(value) 
                 || (isFunc && !parentOrAssigner)))
-            current = assign(Object.create(Object.getPrototypeOf(value)), 
-                             parentOrAssigner, 
-                             prop);
+            cloned = assign(Object.create(Object.getPrototypeOf(value)), 
+                            parentOrAssigner, 
+                            prop);
         
         // Check if we are instance of global JavaScript class which is a proxy 
         // to data. If we are, try to copy that data in a new instance of that 
@@ -107,12 +110,12 @@ function cloneInternalNoRecursion(_value) {
                 if (value instanceof ArrayBuffer) {
                     const arrayBuffer = new Value(value.byteLength);
                     new Uint8Array(arrayBuffer).set(new Uint8Array(value));
-                    current = assign(arrayBuffer, parentOrAssigner, prop);
+                    cloned = assign(arrayBuffer, parentOrAssigner, prop);
                 }
                 else if (value instanceof Boolean || value instanceof Date)
-                    current = assign(new Value(Number(value)), 
-                                     parentOrAssigner, 
-                                     prop);
+                    cloned = assign(new Value(Number(value)), 
+                                    parentOrAssigner, 
+                                    prop);
                 else if (  value instanceof DataView
                         || value instanceof Float32Array
                         || value instanceof Float64Array
@@ -126,14 +129,14 @@ function cloneInternalNoRecursion(_value) {
                     const buffer = value.buffer.constructor(
                         value.buffer.byteLength);
                     new Uint8Array(buffer).set(new Uint8Array(value.buffer));
-                    current = assign(
+                    cloned = assign(
                         new Value(buffer, value.byteOffset, value.length),
                         parentOrAssigner,
                         prop);
                 }
                 else if (value instanceof Map) {
                     const map = new Value;
-                    current = assign(map, parentOrAssigner, prop);
+                    cloned = assign(map, parentOrAssigner, prop);
                     value.forEach((subValue, key) => {
                         stack.push({ 
                             value: subValue, 
@@ -145,7 +148,7 @@ function cloneInternalNoRecursion(_value) {
                 }
                 else if (value instanceof Set) {
                     const set = new Value;
-                    current = assign(set, parentOrAssigner, prop);
+                    cloned = assign(set, parentOrAssigner, prop);
                     value.forEach(subValue => {
                         stack.push({ 
                             value: subValue, 
@@ -160,10 +163,10 @@ function cloneInternalNoRecursion(_value) {
                 else if (value instanceof RegExp) {
                     const regExp = new Value(value.source, /\w*$/.exec(value));
                     regExp.lastIndex = value.lastIndex;
-                    current = assign(regExp, parentOrAssigner, prop);
+                    cloned = assign(regExp, parentOrAssigner, prop);
                 }
                 else if (value instanceof Symbol) {
-                    current = assign(
+                    cloned = assign(
                         Object(Symbol.prototype.valueOf.call(value)), 
                         parentOrAssigner, 
                         prop);
@@ -181,7 +184,7 @@ function cloneInternalNoRecursion(_value) {
             }
         }
 
-        hash.set(value, current);
+        hash.set(value, cloned);
 
         // Now copy all enumerable and non-enumerable properties.
         [Object.getOwnPropertyNames(value), Object.getOwnPropertySymbols(value)]
@@ -189,7 +192,7 @@ function cloneInternalNoRecursion(_value) {
             .forEach(key => {
                 stack.push({ 
                     value: value[key], 
-                    parentOrAssigner: current, 
+                    parentOrAssigner: cloned, 
                     prop: key 
                 });
             });
