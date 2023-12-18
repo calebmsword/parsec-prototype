@@ -127,13 +127,13 @@ function cloneInternalNoRecursion(_value, customizer) {
 
         // Ordinary objects, or the rare `arguments` clone
         else if (["[object Object]", "[object Arguments]"]
-                    .includes(Object.prototype.toString.call(value) 
-                || (isFunc && !parentOrAssigner)))
+                    .includes(Object.prototype.toString.call(value)))
             cloned = assign(Object.create(Object.getPrototypeOf(value)), 
                             parentOrAssigner, 
                             prop,
                             metadata);
         
+        // values that will be called using contructor
         else {
             const Value = value.constructor;
 
@@ -161,6 +161,17 @@ function cloneInternalNoRecursion(_value, customizer) {
                     const regExp = new Value(value.source, /\w*$/.exec(value));
                     regExp.lastIndex = value.lastIndex;
                     cloned = assign(regExp, parentOrAssigner, prop, metadata);
+                }
+
+                // Error
+                else if (value instanceof Error) {
+                    const cause = value.cause;
+                    cloned = assign(cause === undefined
+                                        ? new Value(value.message)
+                                        : new Value(value.message, { cause }),
+                                    parentOrAssigner,
+                                    prop,
+                                    metadata);
                 }
 
                 // Check if we are instance of global JavaScript class which is 
@@ -223,14 +234,10 @@ function cloneInternalNoRecursion(_value, customizer) {
                 }
             }
             catch(error) {
-                console.warn("Unable to clone data inaccessible through " + 
-                             "property access. Encountered error:\n", error);
-                try { 
-                    assign(new Value, parentOrAssigner, prop, metadata) 
-                }
-                catch(_error) { 
-                    assign({}, parentOrAssigner, prop, metadata)
-                }
+                console.warn("Unable to clone a specific value. This value " +
+                             "will be assigned an empty object in cloned " +
+                             "result. Encountered error:\n", error);
+                assign({}, parentOrAssigner, prop, metadata);
             }
         }
 
