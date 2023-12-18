@@ -203,8 +203,8 @@ function cloneInternalNoRecursion(_value, customizer) {
                     value.forEach((subValue, key) => {
                         stack.push({ 
                             value: subValue, 
-                            parentOrAssigner: assigned => {
-                                map.set(key, assigned);
+                            parentOrAssigner: cloned => {
+                                map.set(key, cloned);
                             } 
                         });
                     });
@@ -216,8 +216,8 @@ function cloneInternalNoRecursion(_value, customizer) {
                     value.forEach(subValue => {
                         stack.push({ 
                             value: subValue, 
-                            parentOrAssigner: assigned => {
-                                set.add(assigned);
+                            parentOrAssigner: cloned => {
+                                set.add(cloned);
                             }
                         });
                     });
