@@ -161,7 +161,7 @@ function usePromise(thenable, { cancellable, customCancel } = {}) {
     });
 
     if (typeof customCancel !== "function")
-        customCancel = reject => reject();
+        customCancel = reject => () => reject();
 
     return function requestor(receiver) {
         promise
