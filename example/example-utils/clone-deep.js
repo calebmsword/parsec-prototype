@@ -110,22 +110,44 @@ function cloneInternalNoRecursion(_value, customizer) {
                             parentOrAssigner, 
                             prop);
         
-        // Check if we are instance of global JavaScript class which is a proxy 
-        // to data. If we are, try to copy that data in a new instance of that 
-        // class.
+        
         else {
             try {
                 const Value = value.constructor;
 
-                if (value instanceof ArrayBuffer) {
+                // Booleans, Number, String or Symbols which used `new` syntax 
+                // so JavaScript thinks they are objects
+                // We also handle Date here because it is convenient
+                if (value instanceof Boolean || value instanceof Date)
+                    cloned = assign(new Value(Number(value)), 
+                                    parentOrAssigner, 
+                                    prop);
+                else if (value instanceof Number || value instanceof String)
+                    assign(new Value(value), parentOrAssigner, prop);
+                else if (value instanceof Symbol) {
+                    cloned = assign(
+                        Object(Symbol.prototype.valueOf.call(value)), 
+                        parentOrAssigner, 
+                        prop);
+                }
+
+                // Regular Expression
+                else if (value instanceof RegExp) {
+                    const regExp = new Value(value.source, /\w*$/.exec(value));
+                    regExp.lastIndex = value.lastIndex;
+                    cloned = assign(regExp, parentOrAssigner, prop);
+                }
+
+                // Check if we are instance of global JavaScript class which is 
+                // a proxy to data. If we are, try to copy that data in a new 
+                // instance of that class.
+                // This includes ArrayBuffer, TypeArray, Map, & Set. 
+                else if (value instanceof ArrayBuffer) {
                     const arrayBuffer = new Value(value.byteLength);
                     new Uint8Array(arrayBuffer).set(new Uint8Array(value));
                     cloned = assign(arrayBuffer, parentOrAssigner, prop);
                 }
-                else if (value instanceof Boolean || value instanceof Date)
-                    cloned = assign(new Value(Number(value)), 
-                                    parentOrAssigner, 
-                                    prop);
+
                 else if (  value instanceof DataView
                         || value instanceof Float32Array
                         || value instanceof Float64Array
@@ -144,6 +166,7 @@ function cloneInternalNoRecursion(_value, customizer) {
                         parentOrAssigner,
                         prop);
                 }
+
                 else if (value instanceof Map) {
                     const map = new Value;
                     cloned = assign(map, parentOrAssigner, prop);
@@ -156,6 +179,7 @@ function cloneInternalNoRecursion(_value, customizer) {
                         });
                     });
                 }
+
                 else if (value instanceof Set) {
                     const set = new Value;
                     cloned = assign(set, parentOrAssigner, prop);
@@ -167,19 +191,6 @@ function cloneInternalNoRecursion(_value, customizer) {
                             }
                         });
                     });
-                }
-                else if (value instanceof Number || value instanceof String)
-                    assign(new Value(value), parentOrAssigner, prop);
-                else if (value instanceof RegExp) {
-                    const regExp = new Value(value.source, /\w*$/.exec(value));
-                    regExp.lastIndex = value.lastIndex;
-                    cloned = assign(regExp, parentOrAssigner, prop);
-                }
-                else if (value instanceof Symbol) {
-                    cloned = assign(
-                        Object(Symbol.prototype.valueOf.call(value)), 
-                        parentOrAssigner, 
-                        prop);
                 }
             }
             catch(error) {
