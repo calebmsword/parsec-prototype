@@ -24,8 +24,7 @@ import https from "node:https"
  * nebula uses and it should not be used for any other purpose. There are many 
  * features in the browser specification for XMLHttpRequest that are missing or 
  * incorrect. Let "request" represent an XMLHttpRequest instance:
- *  - request.responseXML is never turned into a Document object. It is always 
- * null.
+ *  - request.responseXML is always null.
  *  - request.overrideMimeType() is not implemented.
  *  - request.upload is not present.
  *  - request.timeout is not present.
@@ -120,7 +119,7 @@ class MockXMLHttpRequest {
      * Handler called once an opened request is sent.
      * This function is called, without arguments, every time `readyState`
      * changes value.
-     * @type {Function}
+     * @type {Function|null}
      */
     onreadystatechange = null;
 
@@ -320,8 +319,8 @@ class MockXMLHttpRequest {
 
         header = this.#headersCase[header.toLowerCase()] || header;
         this.#headersCase[header.toLowerCase()] = header;
-        headers[header] = headers[header]
-                          ? `${headers[header]}, ${value}`
+        this.#headers[header] = this.#headers[header]
+                          ? `${this.#headers[header]}, ${value}`
                           : value;
     }
 
@@ -453,7 +452,7 @@ class MockXMLHttpRequest {
         }
         else if (this.#settings.method === "POST")
             // Required by buggy servers the don't satisfy specifications.
-            headers["Content-Length"] = 0;
+            this.#headers["Content-Length"] = 0;
 
         const options = {
             host,
@@ -572,9 +571,9 @@ class MockXMLHttpRequest {
     #isAllowedHttpHeader(header) {
         return this.#disableHeaderCheck ||
             (typeof header === "string"
-            && this.#forbiddenRequestHeaders.some(forbidden => 
-                forbidden.toLowerCase() === header.toLowerCase())
-            );
+            && this.#forbiddenRequestHeaders.every(forbidden => 
+                forbidden.toLowerCase() !== header.toLowerCase()
+            ));
     }
 
     /**

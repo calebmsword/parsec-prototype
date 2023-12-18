@@ -272,7 +272,7 @@ export function createHttpsRequestor(spec) {
         // If improper log provided, use default log
         if (typeof log !== "function")
             log = function logWarning(error) {
-                console.log("Could not autoparse response:\n", error);
+                console.warn("Could not autoparse response:\n", error);
             }
 
         // We have multiple subscriptions to error events, so if we execute  

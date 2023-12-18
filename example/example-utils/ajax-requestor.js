@@ -402,7 +402,7 @@ export function createAjaxRequestor(spec) {
             receiver(result);
             receiver = undefined;
         }
-        
+
         try {
             // requestor can append URL
             if (
@@ -418,13 +418,17 @@ export function createAjaxRequestor(spec) {
                             .toString()
                     }`;
             
+            // If headers didn't override `contentType`, apply `contentType`
+            if (![null, undefined, __other__].includes(contentType))
+                headers["Content-Type"] = ContentType[contentType];
+            
             // Automatically parse request
             if (typeof body === "object" && autoParseRequest !== false)
                 body = Stringify[contentType](body)
             
-            // XMLHttpRequest isn't allowed to assign content-type, toss it
+            // XMLHttpRequest isn't allowed to assign content-length, toss it
             Object.keys(headers).forEach(header => {
-                if (header.toLowerCase() === "content-type")
+                if (header.toLowerCase() === "content-length")
                     delete headers[header];
             });
             

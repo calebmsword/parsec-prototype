@@ -2,14 +2,14 @@ import parsec from "../src/index.js";
 import nebula from "./example-utils/nebula.js"
 import { exists } from "../src/lib/utils.js";
 
-const { thru, branch, fail, map, GET, POST } = nebula;
+const { thru, branch, fail, map, ajaxGet, ajaxPost } = nebula;
 
 
 // with parsec
 parsec.sequence([
-    GET("https://api.sampleapis.com/coffee/hot"),
+    ajaxGet("https://api.sampleapis.com/coffee/hot"),
     map(response => response.data[0]),
-    POST("https://reqres.in/api/users"),
+    ajaxPost("https://reqres.in/api/users"),
     map(response => response.data)
 ])
 (({ value, reason }) => {
@@ -18,26 +18,26 @@ parsec.sequence([
 });
 
 // more complex example using branch to check response status
-parsec.sequence([
-    GET("https://api.sampleapis.com/coffee/hot"),
-    branch(
-        response => response.statusCode === 404,
-        fail("404!"),
-        thru(response => console.log(`all good: ${response.statusMessage}`))
-    ),
-    map(response => response.data[0]),
-    POST("https://reqres.in/api/users"),
-    branch(
-        ({ statusCode }) => statusCode >= 400 && statusCode < 600,
-        fail("4xx or 5xx error code!"),
-        thru(response => console.log(`all good: ${response.statusMessage}`))
-    ),
-    map(response => response.data)
-])
-(({ value, reason }) => {
-    if (exists(value)) return console.log("Success:", value);
-    console.log("Failure because", reason);
-});
+// parsec.sequence([
+//     ajaxGet("https://api.sampleapis.com/coffee/hot"),
+//     branch(
+//         response => response.statusCode === 404,
+//         fail("404!"),
+//         thru(response => console.log(`all good: ${response.statusMessage}`))
+//     ),
+//     map(response => response.data[0]),
+//     ajaxPost("https://reqres.in/api/users"),
+//     branch(
+//         ({ statusCode }) => statusCode >= 400 && statusCode < 600,
+//         fail("4xx or 5xx error code!"),
+//         thru(response => console.log(`all good: ${response.statusMessage}`))
+//     ),
+//     map(response => response.data)
+// ])
+// (({ value, reason }) => {
+//     if (exists(value)) return console.log("Success:", value);
+//     console.log("Failure because", reason);
+// });
 
 // with async-await
 // (async () => {

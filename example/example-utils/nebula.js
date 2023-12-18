@@ -12,6 +12,7 @@ import {
     createAjaxPutRequestor,
     createAjaxDeleteRequestor
 } from "./ajax-requestor.js"
+import clone from "./clone-deep.js";
 
 /**
  * Creates a requestor which maps the given message.
@@ -64,16 +65,20 @@ function branch(condition, ifTrue, ifFalse) {
 
 /**
  * Creates requestor which forwards the message to its receiver.
- * @param {Function} sideEffect Function that takes message and does whatever it 
- * likes. If the sideEffect throws an error, it will be passed to the reciever 
- * as a reason.
+ * @param {Function} sideEffect Function that takes a deep copy of the message 
+ * and does whatever it likes. If the sideEffect throws an error, it will be 
+ * passed to the reciever as a reason.
  * @returns {Function} A requestor.
  */
 function thru(sideEffect) {
     return function requestor(receiver, message) {
+
+        // don't allow sideEffect to affect message passed to receiver
+        const deepCopy = clone(message);
+
         if (typeof sideEffect === "function") 
             try {
-                sideEffect(message);
+                sideEffect(deepCopy);
             }
             catch(reason) {
                 receiver({ reason });
@@ -217,7 +222,7 @@ function ajax(url, spec) {
  * `createGetRequestor`.
  * @returns {Function} The requestor.
  */
-function GET(url, spec) {
+function ajaxGet(url, spec) {
     return createAjaxGetRequestor(url, spec);
 }
 
@@ -244,7 +249,7 @@ function nodePost(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
-function POST(url, spec) {
+function ajaxPost(url, spec) {
     return (receiver, message) => 
         createAjaxPostRequestor(url, spec)(receiver, { body: message });
 }
@@ -272,7 +277,7 @@ function POST(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
-function PUT(url, spec) {
+function ajaxPut(url, spec) {
     return (receiver, message) => 
         createAjaxPutRequestor(url, spec)(receiver, { body: message });
 }
@@ -295,7 +300,7 @@ function PUT(url, spec) {
  * `createPostRequestor`.
  * @returns {Function} The requestor.
  */
-function DELETE(url, spec) { 
+function ajaxDelete(url, spec) { 
     return createAjaxDeleteRequestor(url, spec);
 }
 
@@ -316,10 +321,10 @@ const nebula = Object.freeze({
     nodeDelete,
     
     ajax,
-    GET,
-    POST,
-    PUT,
-    DELETE
+    ajaxGet,
+    ajaxPost,
+    ajaxPut,
+    ajaxDelete
 });
 
 export default nebula;
