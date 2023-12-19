@@ -27,11 +27,11 @@ function cloneInternalNoRecursion(_value, customizer, log) {
     const metaStack = [];
     
     /**
-     * Creates a CloneDeepWarning instance, which extends Error.
+     * Creates a CloneDeepWarning instance, a subclass of Error.
      * @param {String} message The error message.
      * @param {Object} cause If an object with a `cause` property, it will add 
      * a cause to the error when logged.
-     * @returns 
+     * @returns {Error} A CloneDeepWarning, which is an Error subclass.
      */
     function warn(message, cause) {
         class CloneDeepWarning extends Error {
