@@ -122,7 +122,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
         }
 
         // Perform user-injected logic if applicable.
-        let customClone, additionalValues, dontClone, dontCloneProps;
+        let customClone, additionalValues, dontClone, dontCloneProps, doThrow;
         if (typeof customizer === "function") {
             try {
                 const customResult = customizer(value);
@@ -152,6 +152,8 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                 }
             }
             catch(error) {
+                if (doThrow === true) throw error;
+
                 customClone = undefined;
                 
                 error.message = "customizer encountered error. Its results " + 
@@ -511,7 +513,11 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * The customizer can return an object with a `dontCloneProps` property. If 
  * it is `true`, the props of the cloned value will NOT be cloned. If the object 
  * returns a `dontClone` property that is `true`, the value won't be cloned at 
- * all. 
+ * all.
+ * 
+ * Normally, errors thrown by the customizer are caught and fed to the `log`. If 
+ * you would like the customizer to throw errors, then have the object returned 
+ * by customizer have a `doThrow` property with the value of `true`.
  * 
  * You could also use the customizer to support unsupported types. Or if you 
  * make the regrettable decision of monkeypatching core JavaScript classes, you 
