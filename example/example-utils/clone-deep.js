@@ -26,6 +26,13 @@ function cloneInternalNoRecursion(_value, customizer, log) {
     // Object.isFrozen
     const metaStack = [];
     
+    /**
+     * Creates a CloneDeepWarning instance, which extends Error.
+     * @param {String} message The error message.
+     * @param {Object} cause If an object with a `cause` property, it will add 
+     * a cause to the error when logged.
+     * @returns 
+     */
     function warn(message, cause) {
         class CloneDeepWarning extends Error {
             constructor(message, cause) {
@@ -392,7 +399,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * Functions also cannot be properly cloned. If you provide a function to this 
  * method, an empty object will be returned. However, if you provide an object 
  * with methods, they will be copied by value (no new function object will be 
- * created).
+ * created). A warning is logged if this occurs.
  * 
  * This method works consistently for properties, but there is potential for 
  * problems if you subclass internal JavaScript classes such as TypeArray, Map, 
