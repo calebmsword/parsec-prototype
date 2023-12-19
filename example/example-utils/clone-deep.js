@@ -127,18 +127,24 @@ function cloneInternalNoRecursion(_value, customizer, log) {
         }
 
         if (customClone !== undefined) {
-            /* skip the following else-if branches*/
+            /* skip the following "else if" branches*/
         }
 
         // We won't clone weakmaps or weaksets.
         else if ([WeakMap, WeakSet].some(cls => value instanceof cls)) {
-            assign({}, parentOrAssigner, prop, metadata);
+            log(new Error(`Attempted to clone unsupported type${
+                typeof value.constructor === "function" && 
+                typeof value.constructor.name === "string"
+                ? ` ${value.constructor.name}`
+                : ""
+            }. The value will be copied as an empty object.`))
+            assign({}, parentOrAssigner, prop, metadata);$
             continue;
         }
 
         // We only copy functions if they are methods.
         else if (typeof value === "function") {
-            assign(parentOrAssigner !== undefined 
+            assign(parentOrAssigner !== TOP_LEVEL 
                        ? value 
                        : {}, 
                    parentOrAssigner, 
@@ -315,25 +321,27 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * deeply nested objects. (Unfortunately, as of December 2023, V8 implements 
  * structuredClone with a recursive algorithm. Hopefully this will change in the 
  * future.)
- *  - Methods are copied over to the clone.
- *  - structuredClone works for many Web API types (see
- * https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm#webapi_types).
- * This algorithm does not.
+ *  - Methods are copied over to the clone. The functions are not clones, they 
+ * point to the same function as the original.
  *  - This algorithm works with all of the listed JavaScript types in 
  * https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm#javascript_types,
  * as well as Symbols and Node Buffer objects.
+ *  - This algorithm does NOT work for the Web API types in
+ * https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm#webapi_types).
  *  - The property descriptor of properties are preserved. structuredClone 
  * ignores them.
- *  - Unsupported types fail "silently". Any unsupported type is simply copied 
- * as an empty object.
+ *  - Unsupported types fail "quietly". Any unsupported type is simply copied 
+ * as an empty object, and a warning is logged to the console (or sent to the 
+ * custom logger provided).
  * 
  * Weakmaps and weaksets cannot be correctly cloned. If you provide a weakmap, 
  * weakset, *or a subclass of these classes*, then an empty object will be 
  * returned. The test for this condition uses the `instanceof` operator.
  * 
  * Functions also cannot be properly cloned. If you provide a function to this 
- * method, an empty object will be returned. If the object contains methods, 
- * they will be copied by value (no new function object will be created).
+ * method, an empty object will be returned. However, if y ou provied an object 
+ * with methods, they will be copied by value (no new function object will be 
+ * created).
  * 
  * This method works consistently for properties, but there is potential for 
  * problems if you subclass internal JavaScript classes such as TypeArray, Map, 
@@ -354,13 +362,18 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  *  2) Check the store of already seen values to see if the provided value is a 
  * circular reference. If so, use the clone stored in the store for that value.
  *  3) If the customizer is provided, **pass the value to the customizer**.
- *  4) If there is no customizer or the customizer returns any value that is not 
- * an object, the algorithm proceeds as normal. If the customizer returns 
- * an object, then the `customResult` property in that object is used as the 
- * clone for the value.
- *  5) Save the cloned value in a store to check for circular references in the 
+ *  4) If the customizer returns an object which has a `customClone` property 
+ * that is not `undefined`, then the `customClone` property in that object is 
+ * used as the clone for the value.
+ *  5) If there is no customizer, or the customizer returns any value that is 
+ * not an object, or the customizer returns an object whose `customClone` 
+ * property is undefined, then the algorithm proceeds as normal. The algorithm 
+ * checks if the object if one of the supported types and clones it in the 
+ * appropriate way. If it is not one of the appropriate types, the logger is 
+ * called with a warning and the value is copied as an empty object. 
+ *  6) Save the cloned value in a store to check for circular references in the 
  * future.
- *  6) Repeat for all properties on the provided value.
+ *  7) Repeat for all properties on the provided value.
  * 
  * @example
  * ```
@@ -389,9 +402,8 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * the clone of `value` to something. It is passed the clone of `value` as an 
  * argument.
  * 
- * The `additionalValues` property should only be used to clone data that an
- * object has access to that can only be accessed with object methods. See the 
- * following example. 
+ * The `additionalValues` property should only be used to clone data an object 
+ * can only access through its methods. See the following example. 
  * 
  * @example
  * ```
@@ -432,20 +444,27 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  *     }
  * });
  * 
- * console.log(cloned.get());  // { foo: "bar" }
+ * console.log(wrapper.get());  // { foo: "bar" }
+ * console.log(cloned.get());   // { foo: "bar" }
  * console.log(cloned.get() === wrapper.get());  // false
  * ```
+ * 
+ * You could also use the customizer to support unsupported types. If you make 
+ * the regrettable decision of monkeypatching core JavaScript classes, you could 
+ * also use the customizer to compensate so that this function still functions 
+ * properly. But please don't reach that point.
  * 
  * @param {any} value The value to deeply copy.
  * @param {Object} options Additional options for the clone.
  * @param {Function} options.customizer Allows the user to inject custom logic. 
  * The function is given the value to copy. If the function returns an object 
- * with a `customClone` property, the value on that property will be used as the
+ * with a `customClone` property , the value on that property will be used as the
  * clone (if it is not `undefined`). See the documentation for `clone` for more 
  * information.
  * @param {Function} options.log Any errors which occur during the algorithm can 
- * optionally be passed to a log function. `log` should take one single 
- * argument which is the error object. 
+ * optionally be passed to a log function. `log` should take one argument, which 
+ * will be the error encountered. Use this to the log the error to a custom 
+ * logger.
  * @returns {Object} The deep copy.
  */
 function clone(value, options) {
