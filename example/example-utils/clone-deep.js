@@ -21,6 +21,23 @@ function cloneInternalNoRecursion(_value, customizer, log) {
 
     // A stack so we can avoid recursion.
     const stack = [{ value: _value, parentOrAssigner: TOP_LEVEL }];    
+    
+    // We will do a second pass through everything to check Object.isSeal and 
+    // Object.isFrozen
+    const metaStack = [];
+    
+    function warn(message, cause) {
+        class CloneDeepWarning extends Error {
+            constructor(message, cause) {
+                super(message, cause);
+                this.name = CloneDeepWarning.name;
+            }
+        }
+
+        return cause !== undefined 
+               ? new CloneDeepWarning(message, cause)
+               : new CloneDeepWarning(message);
+    }
 
     /**
      * Handles the assignment of the cloned value to some persistent place.
@@ -48,7 +65,11 @@ function cloneInternalNoRecursion(_value, customizer, log) {
             delete metadata.value;
 
             // defineProperty throws if property with accessors is writeable
-            if (hasAccessor) delete metadata.writable;
+            if (hasAccessor) {
+                delete metadata.writable;
+                log(warn("Cloning value whose property descriptor is a get " + 
+                         "or set accessor!"));
+            }
 
             Object.defineProperty(parentOrAssigner, prop, Object.assign(
                 // defineProperty throws if value and set/get accessor coexist
@@ -79,7 +100,9 @@ function cloneInternalNoRecursion(_value, customizer, log) {
         let cloned;
 
         // If value is primitive, just assign it directly.
-        if (value === null || !["object", "function"].includes(typeof value)) {
+        // We don't allow symbols yet so that a customizer can ignore them.
+        if (value === null || !["object", "function", "symbol"]
+                .includes(typeof value)) {
             assign(value, parentOrAssigner, prop, metadata);
             continue;
         }
@@ -92,14 +115,20 @@ function cloneInternalNoRecursion(_value, customizer, log) {
         }
 
         // Perform user-injected logic if applicable.
-        let customClone, additionalValues;
+        let customClone, additionalValues, dontClone, dontCloneProps;
         if (typeof customizer === "function") {
             try {
                 const customResult = customizer(value);
                 
                 if (typeof customResult === "object") {
                     // Must wrap destructure in () if not variable declaration
-                    ({ customClone, additionalValues } = customResult);
+                    ({ customClone, 
+                       additionalValues,
+                       dontClone,
+                       dontCloneProps 
+                    } = customResult);
+
+                    if (dontClone === true) continue;
 
                     cloned = assign(customClone, 
                                     parentOrAssigner, 
@@ -122,7 +151,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                                 "will be ignored for the current value, and " + 
                                 "the algorithm will proceed as normal. Error " +
                                 "encountered: " + error.message;
-                log(error);
+                log(warn(error.message, error.cause));
             }
         }
 
@@ -130,15 +159,21 @@ function cloneInternalNoRecursion(_value, customizer, log) {
             /* skip the following "else if" branches*/
         }
 
+        // Handle symbol primitives after customizer so they can be ignored
+        else if (typeof value === "symbol") {
+            assign(value, parentOrAssigner, prop, metadata);
+            continue;
+        }
+
         // We won't clone weakmaps or weaksets.
         else if ([WeakMap, WeakSet].some(cls => value instanceof cls)) {
-            log(new Error(`Attempted to clone unsupported type${
+            log(warn(`Attempted to clone unsupported type${
                 typeof value.constructor === "function" && 
                 typeof value.constructor.name === "string"
                 ? ` ${value.constructor.name}`
                 : ""
             }. The value will be copied as an empty object.`))
-            assign({}, parentOrAssigner, prop, metadata);$
+            assign({}, parentOrAssigner, prop, metadata);
             continue;
         }
 
@@ -150,6 +185,11 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                    parentOrAssigner, 
                    prop, 
                    metadata);
+            log(warn(`Cloning function${typeof prop === "string"
+                                        ? ` with name ${prop}`
+                                        : ""  }! ` + 
+                     "JavaScript functions cannot be cloned. If this " + 
+                     "function is a method, then it will be copied directly!"));
             continue;
         }
 
@@ -279,8 +319,8 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                 }
 
                 else {
-                    log(new Error("Unsupported type in object. The value " + 
-                                  "will be \"cloned\" into an empty object."));
+                    log(warn("Unsupported type in object. The value will be" + 
+                             "\"cloned\" into an empty object."));
                     clone = assign({}, parentOrAssigner, prop, metadata);
                 }
             }
@@ -289,12 +329,16 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                                 "specific value. The value will be \"cloned\"" + 
                                 "into an empty object. Error encountered: " + 
                                 error.message
-                log(error);
+                log(warn(error.message, error.cause));
                 clone = assign({}, parentOrAssigner, prop, metadata);
             }
         }
         
         cloneStore.set(value, cloned);
+
+        metaStack.push([value, cloned]);
+
+        if (dontCloneProps === true) continue;
 
         // Now copy all enumerable and non-enumerable properties.
         [Object.getOwnPropertyNames(value), Object.getOwnPropertySymbols(value)]
@@ -307,6 +351,13 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                     metadata: Object.getOwnPropertyDescriptor(value, key)
                 });
             });
+    }
+
+    // check for seal, frozen status
+    for (let pop = metaStack.pop(); pop !== undefined; pop = metaStack.pop()) {
+        const [value, cloned] = pop;
+        if (Object.isFrozen(value)) Object.freeze(cloned);
+        else if (Object.isSealed(value)) Object.seal(cloned);
     }
 
     return result;
@@ -339,7 +390,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * returned. The test for this condition uses the `instanceof` operator.
  * 
  * Functions also cannot be properly cloned. If you provide a function to this 
- * method, an empty object will be returned. However, if y ou provied an object 
+ * method, an empty object will be returned. However, if you provide an object 
  * with methods, they will be copied by value (no new function object will be 
  * created).
  * 
@@ -358,7 +409,8 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * algorithm incorporates the customizer in the following way for each value 
  * that is cloned:
  * 
- *  1) Check if the value is a primitive type. If so, simply copy it.
+ *  1) Check if the value is a primitive type (except for symbols, which are 
+ * handled in step 5). If so, simply copy it.
  *  2) Check the store of already seen values to see if the provided value is a 
  * circular reference. If so, use the clone stored in the store for that value.
  *  3) If the customizer is provided, **pass the value to the customizer**.
@@ -449,10 +501,15 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * console.log(cloned.get() === wrapper.get());  // false
  * ```
  * 
- * You could also use the customizer to support unsupported types. If you make 
- * the regrettable decision of monkeypatching core JavaScript classes, you could 
- * also use the customizer to compensate so that this function still functions 
- * properly. But please don't reach that point.
+ * The customizer can return an object with a `dontCloneProps` property. If 
+ * it is `true`, the props of the cloned value will NOT be cloned. If the object 
+ * returns a `dontClone` property that is `true`, the value won't be cloned at 
+ * all. 
+ * 
+ * You could also use the customizer to support unsupported types. Or if you 
+ * make the regrettable decision of monkeypatching core JavaScript classes, you 
+ * could use the customizer to compensate so that this function still works 
+ * properly. But please don't do that.
  * 
  * @param {any} value The value to deeply copy.
  * @param {Object} options Additional options for the clone.
