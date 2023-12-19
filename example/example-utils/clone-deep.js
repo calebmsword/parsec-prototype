@@ -2,26 +2,33 @@
  * Deeply clones the provided value.
  * @param {any} _value The value to clone deeply.
  * @param {Function} customizer If provided, performs user-injected logic.
+ * @param {log} log Logs any errors encountered.
  * @returns {any} The deep clone.
  */
-function cloneInternalNoRecursion(_value, customizer) {
+function cloneInternalNoRecursion(_value, customizer, log) {
     
+    if (typeof log !== "function") log = console.warn;
+
     let result;
 
     // Will be used to store cloned values so that we don't loop infinitely on 
     // circular references.
     const cloneStore = new Map();
 
+    // This symbol is used to indicate that the cloned value is the top-level 
+    // object that will be returned by the function.
+    const TOP_LEVEL = Symbol("TOP_LEVEL");
+
     // A stack so we can avoid recursion.
-    const stack = [{ value: _value }];
+    const stack = [{ value: _value, parentOrAssigner: TOP_LEVEL }];    
 
     /**
      * Handles the assignment of the cloned value to some persistent place.
      * @param {any} cloned The cloned value.
-     * @param {Object|Function|Undefined} parentOrAssigner Either the parent 
+     * @param {Object|Function|Symbol} parentOrAssigner Either the parent 
      * object that the cloned value will be assigned to, or a function which 
-     * assigns the value itself. If `undefined`, then the value returned by 
-     * the outer function will be assigned the cloned value. 
+     * assigns the value itself. If equal to TOP_LEVEL, then the value returned 
+     * by the outer function will be assigned the cloned value. 
      * @param {String|Symbol} prop If `parentOrAssigner` is a parent object, 
      * then `parentOrAssigner[prop]` will be assigned `cloned`.
      * @param {Object} metadata The property descriptor for the object. If 
@@ -29,7 +36,7 @@ function cloneInternalNoRecursion(_value, customizer) {
      * @returns The cloned value.
      */
     function assign(cloned, parentOrAssigner, prop, metadata) {
-        if (parentOrAssigner === undefined) 
+        if (parentOrAssigner === TOP_LEVEL) 
             result = cloned;
         else if (typeof parentOrAssigner === "function") 
             parentOrAssigner(cloned, prop, metadata);
@@ -85,12 +92,42 @@ function cloneInternalNoRecursion(_value, customizer) {
         }
 
         // Perform user-injected logic if applicable.
+        let customClone, additionalValues;
         if (typeof customizer === "function") {
-            const customResult = customizer(value, 
-                                            parentOrAssigner, 
-                                            prop, 
-                                            metadata);
-            if (customResult !== undefined) cloned = customResult;
+            try {
+                const customResult = customizer(value);
+                
+                if (typeof customResult === "object") {
+                    // Must wrap destructure in () if not variable declaration
+                    ({ customClone, additionalValues } = customResult);
+
+                    cloned = assign(customClone, 
+                                    parentOrAssigner, 
+                                    prop, 
+                                    metadata);
+
+                    if (Array.isArray(additionalValues))
+                        additionalValues.forEach(object => {
+                            if (typeof object === "object") {
+                                object.parentOrAssigner = object.assigner;
+                                stack.push(object);
+                            }
+                        });
+                }
+            }
+            catch(error) {
+                customClone = undefined;
+                
+                error.message = "customizer encountered error. Its results " + 
+                                "will be ignored for the current value, and " + 
+                                "the algorithm will proceed as normal. Error " +
+                                "encountered: " + error.message;
+                log(error);
+            }
+        }
+
+        if (customClone !== undefined) {
+            /* skip the following else-if branches*/
         }
 
         // We won't clone weakmaps or weaksets.
@@ -146,7 +183,10 @@ function cloneInternalNoRecursion(_value, customizer) {
                                     prop,
                                     metadata);
                 else if (value instanceof Number || value instanceof String)
-                    assign(new Value(value), parentOrAssigner, prop, metadata);
+                    cloned = assign(new Value(value), 
+                                    parentOrAssigner, 
+                                    prop, 
+                                    metadata);
                 else if (value instanceof Symbol) {
                     cloned = assign(
                         Object(Symbol.prototype.valueOf.call(value)), 
@@ -231,12 +271,20 @@ function cloneInternalNoRecursion(_value, customizer) {
                         });
                     });
                 }
+
+                else {
+                    log(new Error("Unsupported type in object. The value " + 
+                                  "will be \"cloned\" into an empty object."));
+                    clone = assign({}, parentOrAssigner, prop, metadata);
+                }
             }
             catch(error) {
-                console.warn("Unable to clone a specific value. This value " +
-                             "will be assigned an empty object in cloned " +
-                             "result. Encountered error:\n", error);
-                assign({}, parentOrAssigner, prop, metadata);
+                error.message = "Encountered error while attempting to clone " + 
+                                "specific value. The value will be \"cloned\"" + 
+                                "into an empty object. Error encountered: " + 
+                                error.message
+                log(error);
+                clone = assign({}, parentOrAssigner, prop, metadata);
             }
         }
         
@@ -262,11 +310,28 @@ function cloneInternalNoRecursion(_value, customizer) {
  * Create a deep copy of the provided value.
  * The cloned object will point to the *same prototype* as the original.
  * 
+ * This behaves like structuredClone, but there are differences:
+ *  - The function is not recursive, so the call stack does not blow up for 
+ * deeply nested objects. (Unfortunately, as of December 2023, V8 implements 
+ * structuredClone with a recursive algorithm. Hopefully this will change in the 
+ * future.)
+ *  - Methods are copied over to the clone.
+ *  - structuredClone works for many Web API types (see
+ * https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm#webapi_types).
+ * This algorithm does not.
+ *  - This algorithm works with all of the listed JavaScript types in 
+ * https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm#javascript_types,
+ * as well as Symbols and Node Buffer objects.
+ *  - The property descriptor of properties are preserved. structuredClone 
+ * ignores them.
+ *  - Unsupported types fail "silently". Any unsupported type is simply copied 
+ * as an empty object.
+ * 
  * Weakmaps and weaksets cannot be correctly cloned. If you provide a weakmap, 
  * weakset, *or a subclass of these classes*, then an empty object will be 
  * returned. The test for this condition uses the `instanceof` operator.
  * 
- * Functions also cannot be properly cloned. If you provided a function to this 
+ * Functions also cannot be properly cloned. If you provide a function to this 
  * method, an empty object will be returned. If the object contains methods, 
  * they will be copied by value (no new function object will be created).
  * 
@@ -278,18 +343,115 @@ function cloneInternalNoRecursion(_value, customizer) {
  * `Object.setPrototypeOf`, or use a custom `Symbol.toStringTag` property, it is 
  * impossible to guarantee that the data will be cloned correctly.
  * 
- * Warning: any class which overrides `Symbol.toStringTag` so that it returns 
- * "Object" or "Argument" may have unexpected behavior when cloned.
+ * Also note that any class which overrides `Symbol.toStringTag` so that it 
+ * returns "Object" or "Argument" may have unexpected behavior when cloned.
+ * 
+ * An optional `customizer` can be provided to add additional logic. The 
+ * algorithm incorporates the customizer in the following way for each value 
+ * that is cloned:
+ * 
+ *  1) Check if the value is a primitive type. If so, simply copy it.
+ *  2) Check the store of already seen values to see if the provided value is a 
+ * circular reference. If so, use the clone stored in the store for that value.
+ *  3) If the customizer is provided, **pass the value to the customizer**.
+ *  4) If there is no customizer or the customizer returns any value that is not 
+ * an object, the algorithm proceeds as normal. If the customizer returns 
+ * an object, then the `customResult` property in that object is used as the 
+ * clone for the value.
+ *  5) Save the cloned value in a store to check for circular references in the 
+ * future.
+ *  6) Repeat for all properties on the provided value.
+ * 
+ * @example
+ * ```
+ * // Don't clone methods
+ * const myObject = { 
+ *     a: 1, 
+ *     func: () => "I am a function" 
+ * };
+ * const cloned = clone(myObject, {
+ *     customizer(value) {
+ *         if (typeof value === "function") {
+ *             return { customClone: {} };
+ *         }
+ *     }
+ * });
+ * console.log(cloned);  // { a: 1, func: {} }
+ * ```
+ * 
+ * The object returned by the customizer can also have an `additionalValues` 
+ * property. If it is an array, then it is an array of objects which represent 
+ * additional values that will be cloned. The objects in the array must have the 
+ * following properties:
+ * 
+ *  - `value`: It is the value to clone.
+ *  - `assigner`: It must be a function. It has the responsiblity of assigning 
+ * the clone of `value` to something. It is passed the clone of `value` as an 
+ * argument.
+ * 
+ * The `additionalValues` property should only be used to clone data that an
+ * object has access to that can only be accessed with object methods. See the 
+ * following example. 
+ * 
+ * @example
+ * ```
+ * class Wrapper {
+ *     #value;
+ *     get() {
+ *         return this.#value;
+ *     }
+ *     set(value) {
+ *         this.#value = value;
+ *     }
+ * }
+ * 
+ * const wrapper = new Wrapper();;
+ * wrapper.set({ foo: "bar" });
+ * 
+ * const cloned = clone(wrapper, {
+ *     customizer(value) {
+ *         if (!(value instanceof Wrapper)) return;
+ * 
+ *         const clonedWrapper = new Wrapper();
+ *         
+ *         return {
+ *             customClone: clonedWrapper,
+ * 
+ *             additionalValues: [{
+ *                 // the cloning algorithm will clone 
+ *                 // value.get()
+ *                 value: value.get(),
+ * 
+ *                 // and the assigner will make sure it is 
+ *                 // stored in clonedWrapper
+ *                 assigner(cloned) {
+ *                     clonedWrapper.set(cloned)
+ *                 }
+ *             }]
+ *         };
+ *     }
+ * });
+ * 
+ * console.log(cloned.get());  // { foo: "bar" }
+ * console.log(cloned.get() === wrapper.get());  // false
+ * ```
  * 
  * @param {any} value The value to deeply copy.
- * @param {Function} customizer Allows the user to inject custom logic. The 
- * function provided is given four arguments: `value`, `parentOrAssigner`, 
- * `prop` and `metadata`. If the function returns any value that is not 
- * `undefined`, then that value is used as the cloned result.
+ * @param {Object} options Additional options for the clone.
+ * @param {Function} options.customizer Allows the user to inject custom logic. 
+ * The function is given the value to copy. If the function returns an object 
+ * with a `customClone` property, the value on that property will be used as the
+ * clone (if it is not `undefined`). See the documentation for `clone` for more 
+ * information.
+ * @param {Function} options.log Any errors which occur during the algorithm can 
+ * optionally be passed to a log function. `log` should take one single 
+ * argument which is the error object. 
  * @returns {Object} The deep copy.
  */
-function clone(value, customizer) {
-    return cloneInternalNoRecursion(value, customizer);
+function clone(value, options) {
+    if (typeof options !== "object") options = {};
+    const { customizer, log } = options;
+    return cloneInternalNoRecursion(value, customizer, log);
 }
 
 export default clone;
