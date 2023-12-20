@@ -342,12 +342,16 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                 clone = assign({}, parentOrAssigner, prop, metadata);
             }
         }
-        
+
+        if (dontCloneProps === true) continue;
+
         cloneStore.set(value, cloned);
 
         metaStack.push([value, cloned]);
 
-        if (dontCloneProps === true) continue;
+        // Ensure clone has prototype of value
+        if (Object.getPrototypeOf(cloned) !== Object.getPrototypeOf(value))
+            Object.setPrototypeOf(cloned, Object.getPrototypeOf(value));
 
         // Now copy all enumerable and non-enumerable properties.
         [Object.getOwnPropertyNames(value), Object.getOwnPropertySymbols(value)]
