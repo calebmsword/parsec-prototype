@@ -22,9 +22,10 @@ function cloneInternalNoRecursion(_value, customizer, log) {
     // A stack so we can avoid recursion.
     const stack = [{ value: _value, parentOrAssigner: TOP_LEVEL }];    
     
-    // We will do a second pass through everything to check Object.isSeal and 
-    // Object.isFrozen
-    const metaStack = [];
+    // We will do a second pass through everything to check Object.isExtensible, 
+    // Object.isSealed and Object.isFrozen. We do it last so we don't run into 
+    // issues where we append properties on a frozen object, etc
+    const isExtensibleSealFrozen = [];
     
     /**
      * Creates a CloneDeepWarning instance, a subclass of Error.
@@ -309,6 +310,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                         stack.push({ 
                             value: subValue, 
                             parentOrAssigner: cloned => {
+                                isExtensibleSealFrozen.push([subValue, cloned]);
                                 map.set(key, cloned)
                             }
                         });
@@ -322,6 +324,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                         stack.push({ 
                             value: subValue, 
                             parentOrAssigner: cloned => {
+                                isExtensibleSealFrozen.push([subValue, cloned]);
                                 map.set(key, cloned)
                             }
                         });
@@ -348,7 +351,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
 
         cloneStore.set(value, cloned);
 
-        metaStack.push([value, cloned]);
+        isExtensibleSealFrozen.push([value, cloned]);
 
         // Ensure clone has prototype of value
         if (Object.getPrototypeOf(cloned) !== Object.getPrototypeOf(value))
@@ -367,12 +370,12 @@ function cloneInternalNoRecursion(_value, customizer, log) {
             });
     }
 
-    // check for seal, frozen status
-    for (let pop = metaStack.pop(); pop !== undefined; pop = metaStack.pop()) {
-        const [value, cloned] = pop;
+    // Check extensible, seal, and frozen statuses.
+    isExtensibleSealFrozen.forEach(([value, cloned]) => {
+        if (!Object.isExtensible(value)) Object.preventExtensions(cloned);
+        if (Object.isSealed(value)) Object.seal(cloned);
         if (Object.isFrozen(value)) Object.freeze(cloned);
-        else if (Object.isSealed(value)) Object.seal(cloned);
-    }
+    });
 
     return result;
 }
