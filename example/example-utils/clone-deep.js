@@ -75,7 +75,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
             if (hasAccessor) {
                 delete metadata.writable;
                 log(warn("Cloning value whose property descriptor is a get " + 
-                         "or set accessor!"));
+                         "or set accessor."));
             }
 
             Object.defineProperty(parentOrAssigner, prop, Object.assign(
@@ -92,7 +92,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
     for (let popped = stack.pop(); popped !== undefined; popped = stack.pop()) {
         // `value` is the value to deeply clone
         // `parentOrAssigner` is either
-        //     - undefined - this value is the top-level object that will be 
+        //     - TOP_LEVEL - this value is the top-level object that will be 
         //                   returned by the function
         //     - object    - a parent object this value is nested under
         //     - function  - an "assigner" that has the responsiblity of 
@@ -132,7 +132,8 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                     ({ customClone, 
                        additionalValues,
                        dontClone,
-                       dontCloneProps 
+                       dontCloneProps,
+                       doThrow
                     } = customResult);
 
                     if (dontClone === true) continue;
@@ -158,8 +159,8 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                 
                 error.message = "customizer encountered error. Its results " + 
                                 "will be ignored for the current value, and " + 
-                                "the algorithm will proceed as normal. Error " +
-                                "encountered: " + error.message;
+                                "the algorithm will proceed with default " + 
+                                "behavior. Error encountered: " + error.message;
                 log(warn(error.message, error.cause));
             }
         }
@@ -198,7 +199,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                                         ? ` with name ${prop}`
                                         : ""  }! ` + 
                      "JavaScript functions cannot be cloned. If this " + 
-                     "function is a method, then it will be copied directly!"));
+                     "function is a method, then it will be copied directly."));
             continue;
         }
 
