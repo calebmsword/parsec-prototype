@@ -42,7 +42,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
             }
         }
 
-        return new CloneDeepWarning(message);
+        return new CloneDeepWarning(message, cause);
     }
 
     /**
