@@ -11,8 +11,7 @@ import {
     createAjaxPostRequestor,
     createAjaxPutRequestor,
     createAjaxDeleteRequestor
-} from "./ajax-requestor.js"
-import clone from "./clone-deep.js";
+} from "./ajax-requestor.js";
 
 /**
  * Creates a requestor which maps the given message.
@@ -65,8 +64,8 @@ function branch(condition, ifTrue, ifFalse) {
 
 /**
  * Creates requestor which forwards the message to its receiver.
- * @param {Function} sideEffect Function that takes a deep copy of the message 
- * and does whatever it likes. If the sideEffect throws an error, it will be 
+ * @param {Function} sideEffect Function that takes a read-only proxy for the 
+ * message passed to the receiver. If the sideEffect throws an error, it will be 
  * passed to the reciever as a reason.
  * @returns {Function} A requestor.
  */
@@ -74,11 +73,16 @@ function thru(sideEffect) {
     return function requestor(receiver, message) {
 
         // don't allow sideEffect to affect message passed to receiver
-        const deepCopy = clone(message);
+        const messageProxy = new Proxy(message, {
+            set() {
+                throw new TypeError("This object is a read-only proxy of the " + 
+                                    "message sent to the receiver!")
+            }
+        });
 
         if (typeof sideEffect === "function") 
             try {
-                sideEffect(deepCopy);
+                sideEffect(messageProxy);
             }
             catch(reason) {
                 receiver({ reason });
