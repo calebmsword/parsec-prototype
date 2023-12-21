@@ -42,9 +42,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
             }
         }
 
-        return cause !== undefined 
-               ? new CloneDeepWarning(message, cause)
-               : new CloneDeepWarning(message);
+        return new CloneDeepWarning(message);
     }
 
     /**
@@ -536,18 +534,24 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * @param {Object} options Additional options for the clone.
  * @param {Function} options.customizer Allows the user to inject custom logic. 
  * The function is given the value to copy. If the function returns an object 
- * with a `customClone` property , the value on that property will be used as the
- * clone (if it is not `undefined`). See the documentation for `clone` for more 
- * information.
+ * with a `customClone` property , the value on that property will be used as 
+ * the clone (if it is not `undefined`). See the documentation for `clone` for 
+ * more information.
  * @param {Function} options.log Any errors which occur during the algorithm can 
  * optionally be passed to a log function. `log` should take one argument, which 
  * will be the error encountered. Use this to the log the error to a custom 
  * logger.
+ * @param {String} options.logMode The only supported mode currently is "quiet".
+ * If provided (case-insensitive), no warnings will be logged. Use with caution.
  * @returns {Object} The deep copy.
  */
 function clone(value, options) {
     if (typeof options !== "object") options = {};
-    const { customizer, log } = options;
+    let { customizer, log, logMode } = options;
+
+    if (typeof logMode === "string" && logMode.toLowerCase() === "quiet") 
+        log = () => { /* no-op */ };
+
     return cloneInternalNoRecursion(value, customizer, log);
 }
 
