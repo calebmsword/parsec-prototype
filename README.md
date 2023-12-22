@@ -176,7 +176,9 @@ const saveCoffeeToDatabase = parsec.sequence([
 Requestors and Parsec is a more robust toolset for asynchronous code management than Promises and async-await. However, many useful libraries return Promises, so nebula provides a mechanism for integrating them into Parsec.
 
 ```javascript
-const fetchCoffees = nebula.usePromise(fetch("https://api.sampleapis.com/coffee/hot").then(res => res.json()), {
+const coffeePromise = fetch("https://api.sampleapis.com/coffee/hot")
+    .then(res => res.json());
+const fetchCoffees = nebula.usePromise(coffeePromise, {
     // the Promise can be canceled!
     cancellable: true
 });
