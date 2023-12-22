@@ -40,8 +40,8 @@ function cloneInternalNoRecursion(_value, customizer, log) {
     // object that will be returned by the function.
     const TOP_LEVEL = Symbol("TOP_LEVEL");
 
-    // A stack so we can avoid recursion.
-    const stack = [{ value: _value, parentOrAssigner: TOP_LEVEL }];    
+    // A queue so we can avoid recursion.
+    const queue = [{ value: _value, parentOrAssigner: TOP_LEVEL }];    
     
     // We will do a second pass through everything to check Object.isExtensible, 
     // Object.isSealed and Object.isFrozen. We do it last so we don't run into 
@@ -141,7 +141,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
         return Object.prototype.toString.call(value);
     }
 
-    for (let obj = stack.shift(); obj !== undefined; obj = stack.shift()) {
+    for (let obj = queue.shift(); obj !== undefined; obj = queue.shift()) {
         // `value` is the value to deeply clone
         // `parentOrAssigner` is either
         //     - TOP_LEVEL - this value is the top-level object that will be 
@@ -207,7 +207,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                                 if (object.parentOrAssigner === undefined)
                                     object.parentOrAssigner = object.assigner
                                                               || object.parent;
-                                stack.push(object);
+                                queue.push(object);
                             }
                         });
                 }
@@ -368,7 +368,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                     const map = new Value;
                     cloned = assign(map, parentOrAssigner, prop, metadata);
                     value.forEach((subValue, key) => {
-                        stack.push({ 
+                        queue.push({ 
                             value: subValue, 
                             parentOrAssigner: cloned => {
                                 isExtensibleSealFrozen.push([subValue, cloned]);
@@ -382,7 +382,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
                     const set = new Value;
                     cloned = assign(set, parentOrAssigner, prop, metadata);
                     value.forEach(subValue => {
-                        stack.push({ 
+                        queue.push({ 
                             value: subValue, 
                             parentOrAssigner: cloned => {
                                 isExtensibleSealFrozen.push([subValue, cloned]);
@@ -424,7 +424,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
         [Object.getOwnPropertyNames(value), Object.getOwnPropertySymbols(value)]
             .flat()
             .forEach(key => {
-                stack.push({ 
+                queue.push({ 
                     value: value[key], 
                     parentOrAssigner: cloned,
                     prop: key,
