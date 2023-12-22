@@ -1,6 +1,6 @@
-import parsec from "../src/index.js";
-import nebula from "./example-utils/nebula.js"
-import { exists } from "../src/lib/utils.js";
+import parsec from "../src/parsec/index.js";
+import nebula from "../src/nebula/index.js"
+import { exists } from "../src/parsec/lib/utils.js";
 
 const { thru, branch, fail, map, ajaxGet, ajaxPost } = nebula;
 

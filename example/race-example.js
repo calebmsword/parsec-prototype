@@ -1,4 +1,4 @@
-import parsec from "../src/index.js";
+import parsec from "../src/parsec/index.js";
 
 import { createDelayRequestor } from "./example-utils/create-delay-requestor.js";
 

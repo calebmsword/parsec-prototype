@@ -1,11 +1,11 @@
-import parsec from "../src/index.js";
-import { exists } from "../src/lib/utils.js";
+import parsec from "../src/parsec/index.js";
+import { exists } from "../src/parsec/lib/utils.js";
 import { 
     createHttpsRequestor,
     createPostRequestor,
     createGetRequestor
 } 
-from "./example-utils/create-https-requestor.js";
+from "../src/nebula/lib/create-https-requestor.js";
 
 const getCoffees = createHttpsRequestor({
     hostname: "api.sampleapis.com",

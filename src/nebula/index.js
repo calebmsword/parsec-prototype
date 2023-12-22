@@ -4,14 +4,14 @@ import {
     createPostRequestor,
     createPutRequestor,
     createDeleteRequestor
-} from "./create-https-requestor.js";
+} from "./lib/create-https-requestor.js";
 import {
     createAjaxRequestor,
     createAjaxGetRequestor,
     createAjaxPostRequestor,
     createAjaxPutRequestor,
     createAjaxDeleteRequestor
-} from "./ajax-requestor.js";
+} from "./lib/ajax-requestor.js";
 
 /**
  * Creates a requestor which maps the given message.

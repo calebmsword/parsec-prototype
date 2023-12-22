@@ -1,4 +1,4 @@
-import parsec from "../src/index.js";
+import parsec from "../src/parsec/index.js";
 import { createGetRequestor } from "./example-utils/create-get-requestor.js";
 import { createToJsonRequestor } from "./example-utils/create-to-json-requestor.js"
 

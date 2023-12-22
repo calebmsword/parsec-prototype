@@ -1,4 +1,4 @@
-import { exists } from "../../src/lib/utils.js";
+import { exists } from "../../src/parsec/lib/utils.js";
 
 
 export function createDelayRequestor(delay) {
