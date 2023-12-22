@@ -49,21 +49,21 @@ function cloneInternalNoRecursion(_value, customizer, log) {
     const isExtensibleSealFrozen = [];
     
     /**
-     * Creates a CloneWarning instance, a subclass of Error.
+     * Creates a CloneDeepWarning instance, a subclass of Error.
      * @param {String} message The error message.
      * @param {Object} cause If an object with a `cause` property, it will add 
      * a cause to the error when logged.
-     * @returns {Error} A CloneWarning, which is an Error subclass.
+     * @returns {Error} A CloneDeepWarning, which is an Error subclass.
      */
     function warn(message, cause) {
-        class CloneWarning extends Error {
+        class CloneDeepWarning extends Error {
             constructor(message, cause) {
                 super(message, cause);
-                this.name = CloneWarning.name;
+                this.name = CloneDeepWarning.name;
             }
         }
 
-        return new CloneWarning(message, cause);
+        return new CloneDeepWarning(message, cause);
     }
 
     /**
@@ -113,11 +113,12 @@ function cloneInternalNoRecursion(_value, customizer, log) {
      * Gets a "tag", which is an string which identifies the type of a value.
      * `Object.prototype.toString` returns a string like `"[object <Type>]"`, 
      * where type is the type of the object. We refer this return value as the 
-     * **tag**. The tag is determined by what `this[Symbol.toStringTag]` is.
-     * Note that the specification for `Object.prototype.toString` requires that 
-     * some objects return a specific tag if the object does not have the 
-     * `Symbol.toStringTag`. This makes `Object.prototype.toString.call` a 
-     * stronger type-check that `instanceof`.
+     * **tag**. Normally, the tag is determined by what 
+     * `this[Symbol.toStringTag]` is, but the JavaScript specification for 
+     * `Object.prototype.toString` requires that many native JavaScript objects 
+     * return a specific tag if the object does not have the 
+     * `Symbol.toStringTag` property. This makes 
+     * `Object.prototype.toString.call` a stronger type-check that `instanceof`.
      * 
      * @example
      * ```
@@ -576,7 +577,7 @@ function cloneInternalNoRecursion(_value, customizer, log) {
  * 
  * The customizer has extremely high priority over the default behavior of the 
  * algorithm. The only logic the algorithm prioritizes over the customizer is 
- * the check for circular references.
+ * the check for circular references. 
  * 
  * The best use of the customizer to support user-made types. You can also use 
  * it to override some of the design decisions made in the algorithm (you could, 
