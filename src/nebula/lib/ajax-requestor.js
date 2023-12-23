@@ -1,4 +1,4 @@
-import MockXMLHttpRequest from "./mock-xmlhttprequest-2.js";
+import MockXMLHttpRequest from "./mock-xmlhttprequest.js";
 
 if (typeof globalThis.XMLHttpRequest !== "function")
     globalThis.XMLHttpRequest = MockXMLHttpRequest;
@@ -251,7 +251,7 @@ function getStatusMessage(statusCode) {
  * `spec.contentType`). If it is a string, then it is already parsed.
  * @param {String} spec.contentType Determines how `value.body` is parsed into a 
  * string. If  `"x-www-form-urlencoded"` or 
-`"application/x-www-form-urlencoded"`, `value.body` is transformed into the 
+ * `"application/x-www-form-urlencoded"`, `value.body` is transformed into the 
  * format used by URL query parameters. If `"json"`, `"application/json"`, or 
  * `"default"`, `value.body` is transformed into a string by JSON.stringify. If 
  * no `contentType` is provided, then `"application/json"` is used by default. 
