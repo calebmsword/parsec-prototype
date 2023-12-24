@@ -204,5 +204,4 @@ Parsec should be used as the "next step" in asychronous code management, so any 
  - Thanks to GitHub user driverdan for creating the node-XMLHttpRequest package, 
  which effectively prototyped the MockXMLHttpRequest class used in the nebula 
  prototype.
- - Thanks to the contributors to Lodash, whose `deepClone` method inspired the `clone` method used in the nebula prototype.
  - Thanks to aescling and redoral for comments and suggestions on parsec and nebula.
