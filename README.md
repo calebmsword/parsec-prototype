@@ -1,6 +1,9 @@
-# parsec
+# parsec (prototype)
 Parsec is a robust functional solution to asynchronous code management in JavaScript.
 
+This repository is a prototype.
+
+# Acknowledgement
 This library is based off the library "Parseq" by Douglas Crockford from his book "How JavaScript Works". Functionally, this library is fully equivalent, and the differences are entirely stylistic. Crockford [gives his blessing](https://github.com/douglascrockford/parseq/issues/7#issuecomment-504800341) to all who wish to reimplement Parseq.
 
 ### requestors 
